@@ -1,4 +1,5 @@
 // register_screen.dart
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class RegisterScreen extends StatelessWidget {
@@ -6,6 +7,27 @@ class RegisterScreen extends StatelessWidget {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController =
       TextEditingController();
+
+@override
+void dispose() {
+  emailController.dispose();
+  passwordController.dispose();
+  confirmPasswordController.dispose();
+}
+
+Future<void> createUserWithEmailandPassword() async {
+  try {
+
+final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+    email: emailController.text.trim(), 
+    password: passwordController.text.trim(),
+    );
+    print(userCredential.user);
+  } on FirebaseAuthException catch(e) {
+    print(e);
+  }
+  
+}
 
   @override
   Widget build(BuildContext context) {
@@ -32,8 +54,8 @@ class RegisterScreen extends StatelessWidget {
             ),
             SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () {
-                // Handle registration logic
+              onPressed: () async {
+                await createUserWithEmailandPassword();
                 Navigator.pop(context);
               },
               child: Text('Register'),
