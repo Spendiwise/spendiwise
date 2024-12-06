@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'add_transaction_screen.dart';
-import 'goal_screen.dart'; // Import the Goal Page
+import 'goal_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -10,40 +10,53 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   double balance = 1500.50;
   List<Map<String, dynamic>> transactions = []; // Store transactions here
-  String searchQuery = ''; // For search filter
+  List<Map<String, dynamic>> goals = [
+    {'title': 'Save for Vacation', 'target': 5000.0, 'progress': 2000.0},
+    {'title': 'Buy a New Laptop', 'target': 1500.0, 'progress': 500.0},
+  ];
 
   // Function to delete a transaction
   void deleteTransaction(int index) {
     setState(() {
-      if (transactions[index]['isIncome']) {
-        balance -= transactions[index]['amount'];
+      final transaction = transactions[index];
+      if (transaction['isIncome']) {
+        balance -= transaction['amount'];
       } else {
-        balance += transactions[index]['amount'];
+        balance += transaction['amount'];
       }
       transactions.removeAt(index);
     });
   }
 
   // Function to edit a transaction
-  void editTransaction(Map<String, dynamic> editedTransaction) async {
+  void editTransaction(int index, Map<String, dynamic> editedTransaction) async {
     final updatedTransaction = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AddTransactionScreen(transaction: editedTransaction),
+        builder: (context) =>
+            AddTransactionScreen(transaction: transactions[index]),
       ),
     );
 
     if (updatedTransaction != null) {
       setState(() {
-        // Find the index of the transaction that was edited
-        final index = transactions.indexWhere((t) => t['date'] == editedTransaction['date']);
-        if (index != -1) {
-          transactions[index] = updatedTransaction;
-          // Update balance accordingly
-          balance = transactions.fold(0, (sum, item) => sum + item['amount']);
-        }
+        // Update the transaction at the correct index
+        transactions[index] = updatedTransaction;
+
+        // Recalculate the balance
+        balance = transactions.fold(
+          0.0,
+          (sum, t) => sum + (t['isIncome'] ? t['amount'] : -t['amount']),
+        );
       });
     }
+  }
+
+  // Function to update goals (called when returning from GoalScreen)
+  void updateGoals(List<Map<String, dynamic>> updatedGoals) {
+    setState(() {
+      goals = updatedGoals;
+    });
   }
 
   @override
@@ -55,11 +68,22 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: Icon(Icons.flag),
             tooltip: 'Manage Goals',
-            onPressed: () {
-              Navigator.push(
+            onPressed: () async {
+              // Navigate to GoalScreen and wait for updated goals
+              final updatedGoals = await Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => GoalScreen()),
+                MaterialPageRoute(
+                  builder: (context) => GoalScreen(
+                    balance: balance, // Pass current balance
+                    goals: List<Map<String, dynamic>>.from(goals), // Pass a copy of goals
+                  ),
+                ),
               );
+
+              // If goals are updated, replace the current list
+              if (updatedGoals != null) {
+                updateGoals(updatedGoals);
+              }
             },
           ),
           IconButton(
@@ -70,8 +94,31 @@ class _HomeScreenState extends State<HomeScreen> {
                 context: context,
                 delegate: TransactionSearchDelegate(
                   transactions,
-                  onEditTransaction: editTransaction,
-                  onDeleteTransaction: deleteTransaction,
+                  onEditTransaction: (originalIndex, updatedTransaction) {
+                    setState(() {
+                      // Update the transaction in the original list
+                      transactions[originalIndex] = updatedTransaction;
+
+                      // Recalculate the balance
+                      balance = transactions.fold(
+                        0.0,
+                        (sum, t) =>
+                            sum + (t['isIncome'] ? t['amount'] : -t['amount']),
+                      );
+                    });
+                  },
+                  onDeleteTransaction: (originalIndex) {
+                    setState(() {
+                      // Remove the transaction and adjust the balance
+                      final transaction = transactions[originalIndex];
+                      if (transaction['isIncome']) {
+                        balance -= transaction['amount'];
+                      } else {
+                        balance += transaction['amount'];
+                      }
+                      transactions.removeAt(originalIndex);
+                    });
+                  },
                 ),
               );
             },
@@ -115,20 +162,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Amount: \$${transaction['amount'].toStringAsFixed(2)}'),
+                        Text(
+                            'Amount: \$${transaction['amount'].toStringAsFixed(2)}'),
                         Text('Category: ${transaction['category']}'),
                         Text('Date: ${transaction['date']}'),
-                        Text('Type: ${transaction['isIncome'] ? 'Expense' : 'Income'}'),
+                        Text('Type: ${transaction['isIncome'] ? 'Income' : 'Expense'}'),
                       ],
                     ),
                     trailing: PopupMenuButton<String>(
                       onSelected: (value) {
                         if (value == 'edit') {
-                          // Edit Transaction
-                          editTransaction(transaction); // Pass transaction to edit
+                          editTransaction(index, transaction); // Edit transaction
                         } else if (value == 'delete') {
-                          // Delete Transaction
-                          deleteTransaction(index); // Delete the transaction
+                          deleteTransaction(index); // Delete transaction
                         }
                       },
                       itemBuilder: (context) => [
@@ -176,16 +222,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// Search functionality for transactions
 class TransactionSearchDelegate extends SearchDelegate {
   final List<Map<String, dynamic>> transactions;
-  final Function(Map<String, dynamic> editedTransaction) onEditTransaction;
-  final Function(int index) onDeleteTransaction;
+  final Function(int originalIndex, Map<String, dynamic> updatedTransaction)
+      onEditTransaction;
+  final Function(int originalIndex) onDeleteTransaction;
 
   TransactionSearchDelegate(
-      this.transactions, {
-      required this.onEditTransaction,
-      required this.onDeleteTransaction,
+    this.transactions, {
+    required this.onEditTransaction,
+    required this.onDeleteTransaction,
   });
 
   @override
@@ -194,7 +240,7 @@ class TransactionSearchDelegate extends SearchDelegate {
       IconButton(
         icon: Icon(Icons.clear),
         onPressed: () {
-          query = ''; // Clear search query
+          query = ''; // Clear the search query
         },
       ),
     ];
@@ -205,36 +251,42 @@ class TransactionSearchDelegate extends SearchDelegate {
     return IconButton(
       icon: Icon(Icons.arrow_back),
       onPressed: () {
-        close(context, null);
+        close(context, null); // Close the search
       },
     );
   }
 
   @override
   Widget buildResults(BuildContext context) {
-    final results = transactions.where((transaction) {
-      // Checking all aspects of the transaction for the search query
-      return transaction['description']
-              .toLowerCase()
-              .contains(query.toLowerCase()) ||
-          transaction['category']
-              .toLowerCase()
-              .contains(query.toLowerCase()) ||
-          transaction['amount']
-              .toString()
-              .contains(query) ||
-          transaction['date']
-              .toLowerCase()
-              .contains(query.toLowerCase()) ||
-          (transaction['isIncome'] ? 'income' : 'expense')
-              .toLowerCase()
-              .contains(query.toLowerCase());
-    }).toList();
+    final results = transactions
+        .asMap()
+        .entries
+        .where((entry) {
+          final transaction = entry.value;
+          return transaction['description']
+                  .toLowerCase()
+                  .contains(query.toLowerCase()) ||
+              transaction['category']
+                  .toLowerCase()
+                  .contains(query.toLowerCase()) ||
+              transaction['amount']
+                  .toString()
+                  .contains(query) ||
+              transaction['date']
+                  .toLowerCase()
+                  .contains(query.toLowerCase()) ||
+              (transaction['isIncome'] ? 'income' : 'expense')
+                  .toLowerCase()
+                  .contains(query.toLowerCase());
+        })
+        .toList();
 
     return ListView.builder(
       itemCount: results.length,
       itemBuilder: (context, index) {
-        final transaction = results[index];
+        final originalIndex = results[index].key; // Original index in the full list
+        final transaction = results[index].value;
+
         return ListTile(
           title: Text(transaction['description']),
           subtitle: Column(
@@ -247,13 +299,22 @@ class TransactionSearchDelegate extends SearchDelegate {
             ],
           ),
           trailing: PopupMenuButton<String>(
-            onSelected: (value) {
+            onSelected: (value) async {
               if (value == 'edit') {
-                // Edit transaction
-                onEditTransaction(transaction);
+                final updatedTransaction = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddTransactionScreen(
+                      transaction: transaction,
+                    ),
+                  ),
+                );
+
+                if (updatedTransaction != null) {
+                  onEditTransaction(originalIndex, updatedTransaction);
+                }
               } else if (value == 'delete') {
-                // Delete transaction
-                onDeleteTransaction(index);
+                onDeleteTransaction(originalIndex);
               }
             },
             itemBuilder: (context) => [
@@ -274,62 +335,6 @@ class TransactionSearchDelegate extends SearchDelegate {
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    final suggestions = transactions.where((transaction) {
-      return transaction['description']
-              .toLowerCase()
-              .contains(query.toLowerCase()) ||
-          transaction['category']
-              .toLowerCase()
-              .contains(query.toLowerCase()) ||
-          transaction['amount']
-              .toString()
-              .contains(query) ||
-          transaction['date']
-              .toLowerCase()
-              .contains(query.toLowerCase()) ||
-          (transaction['isIncome'] ? 'income' : 'expense')
-              .toLowerCase()
-              .contains(query.toLowerCase());
-    }).toList();
-
-    return ListView.builder(
-      itemCount: suggestions.length,
-      itemBuilder: (context, index) {
-        final transaction = suggestions[index];
-        return ListTile(
-          title: Text(transaction['description']),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Amount: \$${transaction['amount'].toStringAsFixed(2)}'),
-              Text('Category: ${transaction['category']}'),
-              Text('Date: ${transaction['date']}'),
-              Text('Type: ${transaction['isIncome'] ? 'Income' : 'Expense'}'),
-            ],
-          ),
-          trailing: PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'edit') {
-                // Edit transaction
-                onEditTransaction(transaction);
-              } else if (value == 'delete') {
-                // Delete transaction
-                onDeleteTransaction(index);
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'edit',
-                child: Text('Edit'),
-              ),
-              PopupMenuItem(
-                value: 'delete',
-                child: Text('Delete'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    return buildResults(context); // Reuse buildResults logic for suggestions
   }
 }
