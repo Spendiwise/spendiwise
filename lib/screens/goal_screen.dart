@@ -1,87 +1,27 @@
 import 'package:flutter/material.dart';
+import 'add_goal_screen.dart';
 
-// Add Goal Screen
-class AddGoalScreen extends StatefulWidget {
-  final Map<String, dynamic>? goal; // Accept goal data for editing
-
-  AddGoalScreen({this.goal}); // Constructor to pass the goal for editing
-
-  @override
-  _AddGoalScreenState createState() => _AddGoalScreenState();
-}
-
-class _AddGoalScreenState extends State<AddGoalScreen> {
-  final TextEditingController titleController = TextEditingController();
-  final TextEditingController targetController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-
-    // If editing an existing goal, populate fields with the goal data
-    if (widget.goal != null) {
-      titleController.text = widget.goal!['title'];
-      targetController.text = widget.goal!['target'].toString();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.goal != null ? 'Edit Goal' : 'Add a Goal')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: titleController,
-              decoration: InputDecoration(labelText: 'Goal Title'),
-            ),
-            TextField(
-              controller: targetController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(labelText: 'Target Amount'),
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                final title = titleController.text;
-                final target = double.tryParse(targetController.text);
-
-                if (title.isNotEmpty && target != null) {
-                  // Return the goal data back to the previous screen (for add/edit)
-                  Navigator.pop(context, {
-                    'title': title,
-                    'target': target, // Make sure it's a double
-                    'progress': widget.goal?['progress'] ?? 0.0, // Keep previous progress if editing
-                  });
-                }
-              },
-              child: Text(widget.goal != null ? 'Save Changes' : 'Save Goal'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// Goal Screen
 class GoalScreen extends StatefulWidget {
+  final double balance; // Current balance from HomeScreen
+  final List<Map<String, dynamic>> goals; // Goals passed from HomeScreen
+
+  GoalScreen({required this.balance, required this.goals});
+
   @override
   _GoalScreenState createState() => _GoalScreenState();
 }
 
 class _GoalScreenState extends State<GoalScreen> {
-  List<Map<String, dynamic>> goals = [
-    {'title': 'Save for Vacation', 'target': 5000.0, 'progress': 2000.0},
-    {'title': 'Buy a New Laptop', 'target': 1500.0, 'progress': 500.0},
-  ];
+  late List<Map<String, dynamic>> goals; // Local copy of the goals list
+
+  @override
+  void initState() {
+    super.initState();
+    goals = widget.goals; // Initialize with goals from HomeScreen
+  }
 
   @override
   Widget build(BuildContext context) {
-    double balance = 1500.50; // Get balance from elsewhere (e.g., shared preferences or a state manager)
-
     return Scaffold(
       appBar: AppBar(title: Text('Your Goals')),
       body: Column(
@@ -92,8 +32,10 @@ class _GoalScreenState extends State<GoalScreen> {
               itemBuilder: (context, index) {
                 final goal = goals[index];
 
-                // Update progress based on balance
-                double progress = goal['target'] <= balance ? goal['target'] : balance;
+                // Calculate progress dynamically based on balance
+                double progress = widget.balance >= goal['target']
+                    ? goal['target']
+                    : widget.balance;
 
                 return Card(
                   child: ListTile(
@@ -114,7 +56,7 @@ class _GoalScreenState extends State<GoalScreen> {
                       final updatedGoal = await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => AddGoalScreen(goal: goal), // Pass goal for editing
+                          builder: (context) => AddGoalScreen(goal: goal),
                         ),
                       );
 
@@ -148,6 +90,13 @@ class _GoalScreenState extends State<GoalScreen> {
             child: Text('Add New Goal'),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // Pass updated goals back to HomeScreen
+          Navigator.pop(context, goals);
+        },
+        child: Icon(Icons.check),
       ),
     );
   }
