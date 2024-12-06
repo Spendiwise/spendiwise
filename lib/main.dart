@@ -1,5 +1,7 @@
 // main.dart
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:tryout/screens/register_screen.dart';
 import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'screens/landing_screen.dart';
@@ -18,7 +20,20 @@ class SpendiwiseApp extends StatelessWidget {
       title: 'Spendiwise',
       theme: ThemeData(
         primarySwatch: Colors.blue),
-      home: LandingScreen(),
+      home: StreamBuilder
+      (stream: FirebaseAuth.instance.authStateChanges(), 
+      builder: (context, snapshot) {
+        if(snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(),);
+        }
+        if (snapshot.data != null)
+        {
+          return LandingScreen();
+        }
+        return RegisterScreen();
+      }
+      )
+      
     );
   }
 }

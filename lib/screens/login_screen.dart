@@ -1,4 +1,5 @@
 // screens/login_screen.dart
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'register_screen.dart';
 import 'home_screen.dart';
@@ -6,6 +7,18 @@ import 'home_screen.dart';
 class LoginScreen extends StatelessWidget {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+
+ Future<void> loginUserWithEmailandPassword() async {
+  try {
+    final UserCredential =  FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: emailController.text.trim(),
+      password: passwordController.text.trim(),
+    );
+    print(UserCredential);
+  } on FirebaseAuthException catch(e) {
+    print(e.message);
+  }
+ }
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +40,8 @@ class LoginScreen extends StatelessWidget {
             ),
             SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
+                await loginUserWithEmailandPassword();
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => HomeScreen()),

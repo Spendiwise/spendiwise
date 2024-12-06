@@ -9,6 +9,7 @@ class RegisterScreen extends StatelessWidget {
       TextEditingController();
 
 @override
+// ignore: override_on_non_overriding_member
 void dispose() {
   emailController.dispose();
   passwordController.dispose();
