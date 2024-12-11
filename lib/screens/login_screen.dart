@@ -1,7 +1,8 @@
 // screens/login_screen.dart
 import 'package:flutter/material.dart';
 import 'register_screen.dart';
-import 'home_screen.dart';
+import 'personal_wallet_screen.dart';
+import 'main_wallet_screen.dart';
 
 class LoginScreen extends StatelessWidget {
   final TextEditingController emailController = TextEditingController();
@@ -30,7 +31,7 @@ class LoginScreen extends StatelessWidget {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => HomeScreen()),
+                  MaterialPageRoute(builder: (context) => MainWalletScreen()),
                 );
               },
               child: Text('Log In'),
