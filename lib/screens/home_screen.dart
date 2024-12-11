@@ -63,67 +63,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Spendiwise'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.flag),
-            tooltip: 'Manage Goals',
-            onPressed: () async {
-              // Navigate to GoalScreen and wait for updated goals
-              final updatedGoals = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => GoalScreen(
-                    balance: balance, // Pass current balance
-                    goals: List<Map<String, dynamic>>.from(goals), // Pass a copy of goals
-                  ),
-                ),
-              );
-
-              // If goals are updated, replace the current list
-              if (updatedGoals != null) {
-                updateGoals(updatedGoals);
-              }
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.search),
-            tooltip: 'Search Transactions',
-            onPressed: () {
-              showSearch(
-                context: context,
-                delegate: TransactionSearchDelegate(
-                  transactions,
-                  onEditTransaction: (originalIndex, updatedTransaction) {
-                    setState(() {
-                      // Update the transaction in the original list
-                      transactions[originalIndex] = updatedTransaction;
-
-                      // Recalculate the balance
-                      balance = transactions.fold(
-                        0.0,
-                        (sum, t) =>
-                            sum + (t['isIncome'] ? t['amount'] : -t['amount']),
-                      );
-                    });
-                  },
-                  onDeleteTransaction: (originalIndex) {
-                    setState(() {
-                      // Remove the transaction and adjust the balance
-                      final transaction = transactions[originalIndex];
-                      if (transaction['isIncome']) {
-                        balance -= transaction['amount'];
-                      } else {
-                        balance += transaction['amount'];
-                      }
-                      transactions.removeAt(originalIndex);
-                    });
-                  },
-                ),
-              );
-            },
-          ),
-        ],
+        centerTitle: true,
+        title: Text('Personal Wallet'),
       ),
       body: Column(
         children: [
@@ -150,44 +91,183 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
+
+          SizedBox(height: 16),
+          // Row for buttons placed horizontally
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 80,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      // Navigate to GoalScreen and wait for updated goals
+                      final updatedGoals = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => GoalScreen(
+                            balance: balance, // Pass current balance
+                            goals: List<Map<String, dynamic>>.from(goals), // Pass a copy of goals
+                          ),
+                        ),
+                      );
+
+                      // If goals are updated, replace the current list
+                      if (updatedGoals != null) {
+                        updateGoals(updatedGoals);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.flag),
+                        SizedBox(height: 8),
+                        Text('Goals'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: 8), // Small spacing between buttons
+              Expanded(
+                child: SizedBox(
+                  height: 80,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      // Show transaction search
+                      showSearch(
+                        context: context,
+                        delegate: TransactionSearchDelegate(
+                          transactions,
+                          onEditTransaction: (originalIndex, updatedTransaction) {
+                            setState(() {
+                              // Update the transaction in the original list
+                              transactions[originalIndex] = updatedTransaction;
+
+                              // Recalculate the balance
+                              balance = transactions.fold(
+                                0.0,
+                                    (sum, t) =>
+                                sum + (t['isIncome'] ? t['amount'] : -t['amount']),
+                              );
+                            });
+                          },
+                          onDeleteTransaction: (originalIndex) {
+                            setState(() {
+                              // Remove the transaction and adjust the balance
+                              final transaction = transactions[originalIndex];
+                              if (transaction['isIncome']) {
+                                balance -= transaction['amount'];
+                              } else {
+                                balance += transaction['amount'];
+                              }
+                              transactions.removeAt(originalIndex);
+                            });
+                          },
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.search),
+                        SizedBox(height: 8),
+                        Text('Search Transaction'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: 8),
+
+              //TODO: This space will be used to add the 3rd button
+
+            ],
+          ),
+
+          SizedBox(height:16),
+          // Added a heading for transaction history
+          // This will display above the transactions list
+          if (transactions.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Text(
+                'Transaction History',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+
+
           // Transactions list
           Expanded(
             child: ListView.builder(
               itemCount: transactions.length,
               itemBuilder: (context, index) {
-                final transaction = transactions[index];
+                // Use reversed index to show the last added transaction on top
+                final reversedIndex = transactions.length - 1 - index;
+                final transaction = transactions[reversedIndex];
+
+                // Determine the color based on income or expense
+                final lineColor = transaction['isIncome'] ? Colors.green : Colors.red;
+
                 return Card(
-                  child: ListTile(
-                    title: Text(transaction['description']),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                            'Amount: \$${transaction['amount'].toStringAsFixed(2)}'),
-                        Text('Category: ${transaction['category']}'),
-                        Text('Date: ${transaction['date']}'),
-                        Text('Type: ${transaction['isIncome'] ? 'Income' : 'Expense'}'),
-                      ],
-                    ),
-                    trailing: PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'edit') {
-                          editTransaction(index, transaction); // Edit transaction
-                        } else if (value == 'delete') {
-                          deleteTransaction(index); // Delete transaction
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        PopupMenuItem(
-                          value: 'edit',
-                          child: Text('Edit'),
+                  child: Row(
+                    children: [
+                      // Colored line on the left side
+                      Container(
+                        width: 5,
+                        height: 100,
+                        color: lineColor,
+                      ),
+                      Expanded(
+                        child: ListTile(
+                          title: Text(transaction['description']),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Amount: \$${transaction['amount'].toStringAsFixed(2)}'),
+                              Text('Category: ${transaction['category']}'),
+                              Text('Date: ${transaction['date']}'),
+                              Text('Type: ${transaction['isIncome'] ? 'Income' : 'Expense'}'),
+                            ],
+                          ),
+                          trailing: PopupMenuButton<String>(
+                            onSelected: (value) {
+                              if (value == 'edit') {
+                                editTransaction(reversedIndex, transaction); // Edit transaction
+                              } else if (value == 'delete') {
+                                deleteTransaction(reversedIndex); // Delete transaction
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              PopupMenuItem(
+                                value: 'edit',
+                                child: Text('Edit'),
+                              ),
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Text('Delete'),
+                              ),
+                            ],
+                          ),
                         ),
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Text('Delete'),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 );
               },
@@ -195,7 +275,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+
+      floatingActionButton: FloatingActionButton.large(
         onPressed: () async {
           // Navigate to AddTransactionScreen and wait for the result
           final result = await Navigator.push(
@@ -262,72 +343,90 @@ class TransactionSearchDelegate extends SearchDelegate {
         .asMap()
         .entries
         .where((entry) {
-          final transaction = entry.value;
-          return transaction['description']
-                  .toLowerCase()
-                  .contains(query.toLowerCase()) ||
-              transaction['category']
-                  .toLowerCase()
-                  .contains(query.toLowerCase()) ||
-              transaction['amount']
-                  .toString()
-                  .contains(query) ||
-              transaction['date']
-                  .toLowerCase()
-                  .contains(query.toLowerCase()) ||
-              (transaction['isIncome'] ? 'income' : 'expense')
-                  .toLowerCase()
-                  .contains(query.toLowerCase());
-        })
+      final transaction = entry.value;
+      return transaction['description']
+          .toLowerCase()
+          .contains(query.toLowerCase()) ||
+          transaction['category']
+              .toLowerCase()
+              .contains(query.toLowerCase()) ||
+          transaction['amount']
+              .toString()
+              .contains(query) ||
+          transaction['date']
+              .toLowerCase()
+              .contains(query.toLowerCase()) ||
+          (transaction['isIncome'] ? 'income' : 'expense')
+              .toLowerCase()
+              .contains(query.toLowerCase());
+    })
         .toList();
 
+    // reverse the results order
+    final reversedResults = results.reversed.toList();
+
     return ListView.builder(
-      itemCount: results.length,
+      itemCount: reversedResults.length,
       itemBuilder: (context, index) {
-        final originalIndex = results[index].key; // Original index in the full list
-        final transaction = results[index].value;
+        final originalIndex = reversedResults[index].key;
+        final transaction = reversedResults[index].value;
 
-        return ListTile(
-          title: Text(transaction['description']),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Amount: \$${transaction['amount'].toStringAsFixed(2)}'),
-              Text('Category: ${transaction['category']}'),
-              Text('Date: ${transaction['date']}'),
-              Text('Type: ${transaction['isIncome'] ? 'Income' : 'Expense'}'),
-            ],
-          ),
-          trailing: PopupMenuButton<String>(
-            onSelected: (value) async {
-              if (value == 'edit') {
-                final updatedTransaction = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AddTransactionScreen(
-                      transaction: transaction,
+        // Determine the color based on income or expense
+        final lineColor = transaction['isIncome'] ? Colors.green : Colors.red;
+
+        return Row(
+          children: [
+            // Colored line on the left side for search results
+            Container(
+              width: 5,
+              height: 100,
+              color: lineColor,
+            ),
+            Expanded(
+              child: ListTile(
+                title: Text(transaction['description']),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Amount: \$${transaction['amount'].toStringAsFixed(2)}'),
+                    Text('Category: ${transaction['category']}'),
+                    Text('Date: ${transaction['date']}'),
+                    Text('Type: ${transaction['isIncome'] ? 'Income' : 'Expense'}'),
+                  ],
+                ),
+                trailing: PopupMenuButton<String>(
+                  onSelected: (value) async {
+                    if (value == 'edit') {
+                      final updatedTransaction = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AddTransactionScreen(
+                            transaction: transaction,
+                          ),
+                        ),
+                      );
+
+                      if (updatedTransaction != null) {
+                        onEditTransaction(originalIndex, updatedTransaction);
+                      }
+                    } else if (value == 'delete') {
+                      onDeleteTransaction(originalIndex);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Text('Edit'),
                     ),
-                  ),
-                );
-
-                if (updatedTransaction != null) {
-                  onEditTransaction(originalIndex, updatedTransaction);
-                }
-              } else if (value == 'delete') {
-                onDeleteTransaction(originalIndex);
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'edit',
-                child: Text('Edit'),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Delete'),
+                    ),
+                  ],
+                ),
               ),
-              PopupMenuItem(
-                value: 'delete',
-                child: Text('Delete'),
-              ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
