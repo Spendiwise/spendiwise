@@ -1,3 +1,4 @@
+// lib/screens/personal_wallet_screen.dart
 import 'package:flutter/material.dart';
 
 // Widgets
@@ -20,7 +21,7 @@ class PersonalWalletScreen extends StatefulWidget {
   _PersonalWalletScreenState createState() => _PersonalWalletScreenState();
 }
 
-class _PersonalWalletScreenState extends State<PersonalWalletScreen> {
+class _PersonalWalletScreenState extends State<PersonalWalletScreen> with AutomaticKeepAliveClientMixin {
   double balance = 1500.50;
   List<Map<String, dynamic>> transactions = []; // Store transactions here
   List<Map<String, dynamic>> goals = [
@@ -30,6 +31,7 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Important when using AutomaticKeepAliveClientMixin
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
@@ -40,14 +42,14 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> {
           // Balance section
           BalanceSection(balance: balance),
           SizedBox(height: 16),
-          // Row for buttons placed horizontally
+          // Buttons row
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Expanded(
                 child: GoalsButton(
                   onGoalsUpdated: (updatedGoals) {
-                    // Use the controller function to update goals
+                    // Update goals using the controller
                     setState(() {
                       goals = updateGoalsController(updatedGoals);
                     });
@@ -90,16 +92,13 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> {
               transactions: transactions,
               balance: balance,
               onDeleteTransaction: (index) {
-                // Using the transaction_controller method
-                final result = deleteTransactionController(
-                    transactions, balance, index);
+                final result = deleteTransactionController(transactions, balance, index);
                 setState(() {
                   transactions = result.updatedTransactions;
                   balance = result.updatedBalance;
                 });
               },
               onEditTransaction: (index, editedTransaction) async {
-                // Navigate and edit using the controller function
                 final result = await editTransactionController(
                   context,
                   transactions,
@@ -118,10 +117,8 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> {
           ),
         ],
       ),
-
       floatingActionButton: AddTransactionFAB(
         onTransactionAdded: (newTransaction) {
-          // Add new transaction and update balance using controller
           final result = addTransactionController(transactions, balance, newTransaction);
           setState(() {
             transactions = result.updatedTransactions;
@@ -131,4 +128,7 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> {
       ),
     );
   }
+
+  @override
+  bool get wantKeepAlive => true;
 }

@@ -1,11 +1,14 @@
 // lib/screens/groupWallet/user_has_no_group_screen.dart
-
 import 'package:flutter/material.dart';
-import '../../controllers/group_controller.dart'; // Controller import
+import '../../controllers/group_controller.dart';
 import 'create_group_wallet_screen.dart';
 import 'join_group_screen.dart';
 
 class UserHasNoGroupScreen extends StatelessWidget {
+  final Function(String) onGroupCreated;
+
+  UserHasNoGroupScreen({required this.onGroupCreated});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -20,7 +23,7 @@ class UserHasNoGroupScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                'You have no group',
+                'You have no group.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 24,
@@ -29,16 +32,23 @@ class UserHasNoGroupScreen extends StatelessWidget {
               ),
               SizedBox(height: 50),
               ElevatedButton(
-                onPressed: () {
-                  // Call controller function to navigate to create_group_wallet_screen
-                  goToCreateGroupWalletScreen(context);
+                onPressed: () async {
+                  // Navigate to CreateGroupWalletScreen and wait for result
+                  final createdGroupName = await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => CreateGroupWalletScreen()),
+                  );
+
+                  // If a group name is returned, call onGroupCreated callback
+                  if (createdGroupName != null && createdGroupName is String && createdGroupName.trim().isNotEmpty) {
+                    onGroupCreated(createdGroupName);
+                  }
                 },
                 child: Text('Create group wallet'),
               ),
               SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () {
-                  // Call controller function to navigate to join_group_screen
                   goToJoinGroupWalletScreen(context);
                 },
                 child: Text('Join a group wallet'),
