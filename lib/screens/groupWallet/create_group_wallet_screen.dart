@@ -1,7 +1,5 @@
 // lib/screens/groupWallet/create_group_wallet_screen.dart
-
 import 'package:flutter/material.dart';
-import 'group_wallet_screen.dart';
 
 class CreateGroupWalletScreen extends StatefulWidget {
   @override
@@ -12,7 +10,7 @@ class _CreateGroupWalletScreenState extends State<CreateGroupWalletScreen> {
   final TextEditingController groupNameController = TextEditingController();
   final TextEditingController groupDescriptionController = TextEditingController();
 
-  String? errorMessage; // For showing error if group name is empty
+  String? errorMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -52,16 +50,8 @@ class _CreateGroupWalletScreenState extends State<CreateGroupWalletScreen> {
               errorMessage = 'Group name cannot be empty';
             });
           } else {
-            // Navigate to GroupWalletScreen with the created group name
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => GroupWalletScreen(
-                  groupName: groupNameController.text.trim(),
-
-                ),
-              ),
-            );
+            // Return the created group name to the previous screen
+            Navigator.pop(context, groupNameController.text.trim());
           }
         },
         child: Text('Create'),

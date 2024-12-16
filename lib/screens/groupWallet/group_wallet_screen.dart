@@ -1,3 +1,4 @@
+// lib/screens/groupWallet/group_wallet_screen.dart
 import 'package:flutter/material.dart';
 import '../../controllers/transaction_controller.dart';
 import '../../controllers/group_controller.dart';
@@ -17,13 +18,12 @@ class GroupWalletScreen extends StatefulWidget {
   _GroupWalletScreenState createState() => _GroupWalletScreenState();
 }
 
-class _GroupWalletScreenState extends State<GroupWalletScreen> {
+class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKeepAliveClientMixin {
   double balance = 0.0;
   List<Map<String, dynamic>> transactions = [];
   List<Map<String, dynamic>> goals = [];
 
-  // If the user has no other groups, leave this list empty.
-  List<String> userGroups = []; // Empty list: no more groups
+  List<String> userGroups = []; // No other group
 
   late String currentGroupName;
 
@@ -35,9 +35,9 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Important for AutomaticKeepAliveClientMixin
     return Scaffold(
       appBar: AppBar(
-        // Members button in the upper left corner
         leading: IconButton(
           icon: Icon(Icons.group),
           onPressed: () {
@@ -71,7 +71,6 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
             }
           },
           itemBuilder: (context) {
-            // If the user does not have any other groups, only show create and join.
             if (userGroups.isEmpty) {
               return [
                 PopupMenuItem(
@@ -84,7 +83,6 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
                 ),
               ];
             } else {
-              // If there are groups, first show the groups, then create and join buttons
               return [
                 ...userGroups.map((g) => PopupMenuItem(
                   value: g,
@@ -133,6 +131,8 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
                   },
                 ),
               ),
+              SizedBox(width: 8),
+              Expanded(child: SizedBox()),
             ],
           ),
           SizedBox(height:16),
@@ -182,4 +182,7 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
       ),
     );
   }
+
+  @override
+  bool get wantKeepAlive => true; // This keeps the state alive
 }
