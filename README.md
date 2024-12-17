@@ -7,7 +7,7 @@ Expense Tracking and Forecasting Mobile App
 1. [ ] Database integration
 2. [ ] AI integration
 3. [ ] Report function
-4. [ ] Notification function (Also add a button that shows in-app notifications)
+4. [ ] Notification function
 5. [ ] Goal logic
 6. [ ] Limit set and tracking (send notification if limit is exceeded)
 
