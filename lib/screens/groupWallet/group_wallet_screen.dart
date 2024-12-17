@@ -131,8 +131,6 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKee
                   },
                 ),
               ),
-              SizedBox(width: 8),
-              Expanded(child: SizedBox()),
             ],
           ),
           SizedBox(height:16),

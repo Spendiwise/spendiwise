@@ -1,4 +1,3 @@
-// lib/screens/personal_wallet_screen.dart
 import 'package:flutter/material.dart';
 
 // Widgets
@@ -15,6 +14,7 @@ import '../controllers/transaction_controller.dart';
 // Screens
 import 'goal_screen.dart';
 import 'add_transaction_screen.dart';
+import 'notifications_screen.dart';
 
 class PersonalWalletScreen extends StatefulWidget {
   @override
@@ -36,6 +36,18 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
       appBar: AppBar(
         centerTitle: true,
         title: Text('Personal Wallet'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.notifications),
+            onPressed: () {
+              // Navigate to notifications screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => NotificationsScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -49,7 +61,6 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
               Expanded(
                 child: GoalsButton(
                   onGoalsUpdated: (updatedGoals) {
-                    // Update goals using the controller
                     setState(() {
                       goals = updateGoalsController(updatedGoals);
                     });
