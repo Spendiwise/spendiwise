@@ -2,12 +2,15 @@
 import 'package:flutter/material.dart';
 import '../../controllers/transaction_controller.dart';
 import '../../controllers/group_controller.dart';
+import '../../controllers/goal_controller.dart';
 import '../../widgets/balance_section.dart';
 import '../../widgets/goals_button.dart';
 import '../../widgets/search_transaction_button.dart';
 import '../../widgets/transaction_list.dart';
 import '../../widgets/add_transaction_fab.dart';
 import 'members_screen.dart';
+import '../../screens/events_subscription_screen.dart';
+import '../../widgets/events_button.dart';
 
 class GroupWalletScreen extends StatefulWidget {
   final String groupName;
@@ -105,18 +108,20 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKee
         children: [
           BalanceSection(balance: balance),
           SizedBox(height: 16),
+
+// First row for buttons
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Expanded(
                 child: GoalsButton(
-                  balance: balance,
-                  goals: goals,
                   onGoalsUpdated: (updatedGoals) {
                     setState(() {
-                      goals = updatedGoals;
+                      goals = updateGoalsController(updatedGoals);
                     });
                   },
+                  goals: goals,
+                  balance: balance,
                 ),
               ),
               SizedBox(width: 8),
@@ -133,6 +138,19 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKee
               ),
             ],
           ),
+          SizedBox(height: 8),
+
+// Second row for buttons
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                child: EventsButton(),
+              ),
+            ],
+          ),
+
+
           SizedBox(height:16),
           if (transactions.isNotEmpty)
             Padding(
@@ -145,6 +163,7 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKee
                 ),
               ),
             ),
+
           Expanded(
             child: TransactionList(
               transactions: transactions,

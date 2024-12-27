@@ -4,6 +4,8 @@ import 'personal_wallet_screen.dart';
 import 'groupWallet/group_wallet_screen.dart';
 import 'groupWallet/user_has_no_group_screen.dart';
 
+//Here, the screens that will appear as a result of swiping left and right are managed.
+
 class MainWalletScreen extends StatefulWidget {
   @override
   _MainWalletScreenState createState() => _MainWalletScreenState();
