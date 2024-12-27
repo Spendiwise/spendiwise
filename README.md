@@ -7,17 +7,21 @@ Expense Tracking and Forecasting Mobile App
 1. [ ] Database integration
 2. [ ] AI integration
 3. [ ] Report function
-4. [ ] Notification function
-5. [ ] Goal logic
+4. [ ] Goal logic
 6. [ ] Limit set and tracking (send notification if limit is exceeded)
 
 
 ## Group wallet details
 - "Join by Group code" option
-- Invite option
+- "Send Invitation" option
 - Approve / decline implementation
 - Permission for roles (admin, member, viewer)
 - Show group description on members screen
+- Set user roles by admin
+
+## Events
+- events api
+- events-notification relationship
 
 
 ## Extras
