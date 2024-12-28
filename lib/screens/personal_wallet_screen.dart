@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Widgets
 import '../widgets/balance_section.dart';
@@ -13,10 +15,7 @@ import '../controllers/goal_controller.dart';
 import '../controllers/transaction_controller.dart';
 
 // Screens
-import 'goal_screen.dart';
-import 'add_transaction_screen.dart';
 import 'notifications_screen.dart';
-import 'events_subscription_screen.dart';
 
 class PersonalWalletScreen extends StatefulWidget {
   @override
@@ -24,16 +23,75 @@ class PersonalWalletScreen extends StatefulWidget {
 }
 
 class _PersonalWalletScreenState extends State<PersonalWalletScreen> with AutomaticKeepAliveClientMixin {
-  double balance = 1500.50;
-  List<Map<String, dynamic>> transactions = []; // Store transactions here
+  double balance = 0.0; // Initial balance
+  List<Map<String, dynamic>> transactions = [];
   List<Map<String, dynamic>> goals = [
     {'title': 'Save for Vacation', 'target': 5000.0, 'progress': 2000.0},
     {'title': 'Buy a New Laptop', 'target': 1500.0, 'progress': 500.0},
   ];
 
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchBalanceFromFirebase(); // Fetch balance on initialization
+  }
+
+  Future<void> _fetchBalanceFromFirebase() async {
+    try {
+      final User? user = _auth.currentUser;
+      if (user == null) throw Exception("User not logged in");
+
+      String uid = user.uid;
+      DocumentSnapshot userDoc = await _firestore.collection('users').doc(uid).get();
+
+      if (userDoc.exists) {
+        setState(() {
+          balance = (userDoc['balance'] ?? 0.0).toDouble(); // Ensure balance is double
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Balance not found for user.")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error fetching balance: ${e.toString()}")),
+      );
+    }
+  }
+
+  Future<void> _updateBalanceInFirestore() async {
+    try {
+      final User? user = _auth.currentUser;
+      if (user == null) throw Exception("User not logged in");
+
+      String uid = user.uid;
+      await _firestore.collection('users').doc(uid).update({'balance': balance});
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error updating balance: ${e.toString()}")),
+      );
+    }
+  }
+
+  void _onTransactionAdded(Map<String, dynamic> newTransaction) {
+    final result = addTransactionController(transactions, balance, newTransaction);
+
+    setState(() {
+      transactions = result.updatedTransactions;
+      balance = result.updatedBalance;
+    });
+
+    // Update balance in Firestore
+    _updateBalanceInFirestore();
+  }
+
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Important when using AutomaticKeepAliveClientMixin
+    super.build(context); // Important for AutomaticKeepAliveClientMixin
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
@@ -42,7 +100,6 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
           IconButton(
             icon: Icon(Icons.notifications),
             onPressed: () {
-              // Navigate to notifications screen
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => NotificationsScreen()),
@@ -53,11 +110,8 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
       ),
       body: Column(
         children: [
-          // Balance section
           BalanceSection(balance: balance),
           SizedBox(height: 16),
-
-// First row for buttons
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -81,14 +135,14 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
                       transactions = updatedTransactions;
                       balance = updatedBalance;
                     });
+
+                    _updateBalanceInFirestore();
                   },
                 ),
               ),
             ],
           ),
           SizedBox(height: 8),
-
-// Second row for buttons
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -97,20 +151,14 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
               ),
             ],
           ),
-
           if (transactions.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Text(
                 'Transaction History',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
-
-          // Transactions list
           Expanded(
             child: TransactionList(
               transactions: transactions,
@@ -121,6 +169,8 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
                   transactions = result.updatedTransactions;
                   balance = result.updatedBalance;
                 });
+
+                _updateBalanceInFirestore();
               },
               onEditTransaction: (index, editedTransaction) async {
                 final result = await editTransactionController(
@@ -135,6 +185,8 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
                     transactions = result.updatedTransactions;
                     balance = result.updatedBalance;
                   });
+
+                  _updateBalanceInFirestore();
                 }
               },
             ),
@@ -142,13 +194,7 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
         ],
       ),
       floatingActionButton: AddTransactionFAB(
-        onTransactionAdded: (newTransaction) {
-          final result = addTransactionController(transactions, balance, newTransaction);
-          setState(() {
-            transactions = result.updatedTransactions;
-            balance = result.updatedBalance;
-          });
-        },
+        onTransactionAdded: _onTransactionAdded,
       ),
     );
   }
