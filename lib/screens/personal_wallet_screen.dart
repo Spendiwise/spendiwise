@@ -6,6 +6,7 @@ import '../widgets/goals_button.dart';
 import '../widgets/search_transaction_button.dart';
 import '../widgets/transaction_list.dart';
 import '../widgets/add_transaction_fab.dart';
+import '../widgets/events_button.dart';
 
 // Controllers
 import '../controllers/goal_controller.dart';
@@ -15,6 +16,7 @@ import '../controllers/transaction_controller.dart';
 import 'goal_screen.dart';
 import 'add_transaction_screen.dart';
 import 'notifications_screen.dart';
+import 'events_subscription_screen.dart';
 
 class PersonalWalletScreen extends StatefulWidget {
   @override
@@ -54,7 +56,8 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
           // Balance section
           BalanceSection(balance: balance),
           SizedBox(height: 16),
-          // Buttons row
+
+// First row for buttons
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -81,7 +84,17 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
                   },
                 ),
               ),
-              SizedBox(width: 8),
+            ],
+          ),
+          SizedBox(height: 8),
+
+// Second row for buttons
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                child: EventsButton(),
+              ),
             ],
           ),
 
