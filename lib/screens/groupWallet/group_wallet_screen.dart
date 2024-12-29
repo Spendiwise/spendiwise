@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:tryout/widgets/forecasting_button.dart';
 import '../../controllers/transaction_controller.dart';
 import '../../controllers/group_controller.dart';
 import '../../controllers/goal_controller.dart';
@@ -201,7 +202,7 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKee
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Expanded(
-                child: EventsButton(),
+                child: ForecastingButton(),
               ),
             ],
           ),
