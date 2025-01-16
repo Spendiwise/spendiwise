@@ -3,8 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert'; // For JSON encoding/decoding
 import 'package:http/http.dart' as http; // For making HTTP requests
-import 'package:tryout/widgets/forecasting_button.dart';
-
 
 // Widgets
 import '../widgets/balance_section.dart';
@@ -167,6 +165,7 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
       );
     }
   }
+//bug fixer
 
   Widget _buildForecastSection() {
     if (forecastData == null || forecastData!.isEmpty) {
@@ -272,9 +271,6 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
             children: [
               Expanded(
                 child: EventsButton(),
-              ),
-              Expanded(
-                child: ForecastingButton(),
               ),
             ],
           ),
