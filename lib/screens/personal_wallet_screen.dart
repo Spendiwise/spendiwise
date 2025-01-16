@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert'; // For JSON encoding/decoding
+import 'package:http/http.dart' as http; // For making HTTP requests
 
 // Widgets
 import '../widgets/balance_section.dart';
@@ -30,37 +32,34 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
     {'title': 'Buy a New Laptop', 'target': 1500.0, 'progress': 500.0},
   ];
 
+  Map<String, dynamic>? forecastData; // Store forecast data
+
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
     super.initState();
-    _fetchBalanceFromFirebase(); // Fetch balance on initialization
+    _listenToBalanceChanges(); // Listen for balance changes in real-time
+    _fetchTransactions(); // Fetch transactions from Firestore
+    _fetchForecastData(); // Optionally, fetch forecast data
   }
 
-  Future<void> _fetchBalanceFromFirebase() async {
-    try {
-      final User? user = _auth.currentUser;
-      if (user == null) throw Exception("User not logged in");
+  // Real-time listener for balance changes
+  void _listenToBalanceChanges() {
+    final User? user = _auth.currentUser;
+    if (user == null) return; // No user logged in
 
-      String uid = user.uid;
-      DocumentSnapshot userDoc = await _firestore.collection('users').doc(uid).get();
-
-      if (userDoc.exists) {
+    String uid = user.uid;
+    _firestore.collection('users').doc(uid).snapshots().listen((snapshot) {
+      if (snapshot.exists) {
         setState(() {
-          balance = (userDoc['balance'] ?? 0.0).toDouble(); // Ensure balance is double
+          balance = (snapshot['balance'] ?? 0.0).toDouble(); // Update balance with Firestore data
         });
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Balance not found for user.")),
-        );
+        print('User document not found');
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error fetching balance: ${e.toString()}")),
-      );
-    }
+    });
   }
 
   Future<void> _updateBalanceInFirestore() async {
@@ -77,6 +76,70 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
     }
   }
 
+  Future<void> _fetchTransactions() async {
+    try {
+      final User? user = _auth.currentUser;
+      if (user == null) throw Exception("User not logged in");
+
+      // Fetch transactions where the 'user_id' reference matches the current user's reference
+      final snapshot = await _firestore
+          .collection('transactions')
+          .where('user_id', isEqualTo: _firestore.collection('users').doc(user.uid))
+          .get();
+
+      List<Map<String, dynamic>> fetchedTransactions = [];
+      double fetchedBalance = 0.0;
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        fetchedTransactions.add(data);
+        fetchedBalance += data['amount'];
+      }
+
+      setState(() {
+        transactions = fetchedTransactions;
+        balance = fetchedBalance;
+      });
+    } catch (e) {
+      print('Error fetching transactions: $e');
+    }
+  }
+
+  Future<void> _fetchForecastData() async {
+    try {
+      final User? user = _auth.currentUser;
+      if (user == null) throw Exception("User not logged in");
+
+      // Example API URL (replace with your actual API endpoint)
+      final String apiUrl = 'http://10.0.2.2:5000/forecast';
+
+      // JSON payload
+      final Map<String, dynamic> payload = {
+        "user_id": user.uid,
+        "category": "Groceries",
+        "duration": "month",
+      };
+
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          forecastData = jsonDecode(response.body); // Decode and store forecast data
+        });
+      } else {
+        throw Exception('Failed to fetch forecast data: ${response.statusCode}');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error fetching forecast data: ${e.toString()}")),
+      );
+    }
+  }
+
   void _onTransactionAdded(Map<String, dynamic> newTransaction) {
     final result = addTransactionController(transactions, balance, newTransaction);
 
@@ -87,6 +150,45 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
 
     // Update balance in Firestore
     _updateBalanceInFirestore();
+  }
+
+  Widget _buildForecastSection() {
+    if (forecastData == null || forecastData!.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            'No forecast data available.',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ),
+      );
+    } else {
+      return Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Forecast Data',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            ...forecastData!.entries.map((entry) {
+              return Card(
+                elevation: 4,
+                margin: EdgeInsets.symmetric(vertical: 8),
+                child: ListTile(
+                  leading: Icon(Icons.bar_chart, color: Colors.blue),
+                  title: Text(entry.key),
+                  subtitle: Text('Value: ${entry.value}'),
+                ),
+              );
+            }).toList(),
+          ],
+        ),
+      );
+    }
   }
 
   @override
@@ -106,11 +208,17 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
               );
             },
           ),
+          IconButton(
+            icon: Icon(Icons.cloud),
+            onPressed: _fetchForecastData, // Trigger forecast data fetch
+          ),
         ],
       ),
       body: Column(
         children: [
           BalanceSection(balance: balance),
+          SizedBox(height: 16),
+          _buildForecastSection(),
           SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
