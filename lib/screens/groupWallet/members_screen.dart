@@ -1,27 +1,41 @@
 import 'package:flutter/material.dart';
+import '../../controllers/random_code_generator.dart';
 import 'waitings_screen.dart';
 
-class MembersScreen extends StatelessWidget {
+class MembersScreen extends StatefulWidget {
   final String groupName;
 
   MembersScreen({required this.groupName});
 
   @override
+  _MembersScreenState createState() => _MembersScreenState();
+}
+
+class _MembersScreenState extends State<MembersScreen> {
+  // Members list with initial roles
+  final List<Map<String, String>> members = [
+    {'name': 'person 1', 'role': 'admin'},
+    {'name': 'person 2', 'role': 'user'},
+    {'name': 'person 3', 'role': 'viewer'},
+  ];
+
+  final List<String> roles = ['admin', 'user', 'viewer']; // Available roles
+
+  @override
   Widget build(BuildContext context) {
-    final members = [
-      {'name': 'Name surmame', 'role': 'admin'},
-    ];
+    final groupCode = RandomCodeGenerator.generateCode();
 
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: Text('Members of $groupName'),
+        title: Text('Members of ${widget.groupName}'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Here is a two-column structure. The first column is the name, the second column is the role.
+            SizedBox(height: 16),
+            // Two-column structure for members
             Expanded(
               child: ListView.builder(
                 itemCount: members.length,
@@ -29,26 +43,39 @@ class MembersScreen extends StatelessWidget {
                   final member = members[index];
                   return Row(
                     children: [
+                      // Display member name
                       Expanded(
                         child: Text(member['name']!,
                             style: TextStyle(fontSize: 16)),
                       ),
+                      // Role dropdown menu
                       Expanded(
-                        child: Text(member['role']!, // TODO: roles and permissions will be added
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 16)),
+                        child: DropdownButton<String>(
+                          value: member['role'],
+                          items: roles.map((String role) {
+                            return DropdownMenuItem<String>(
+                              value: role,
+                              child: Text(role),
+                            );
+                          }).toList(),
+                          onChanged: (String? newRole) {
+                            setState(() {
+                              members[index]['role'] = newRole!;
+                            });
+                          },
+                          isExpanded: true,
+                        ),
                       ),
                     ],
                   );
                 },
               ),
             ),
-            SizedBox(height:16),
+            SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  // Go to Waitings screen
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => WaitingsScreen()),
@@ -60,12 +87,12 @@ class MembersScreen extends StatelessWidget {
                 child: Text('Waitings'),
               ),
             ),
-            SizedBox(height:16),
+            SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  _showInviteBottomSheet(context);
+                  _showInviteBottomSheet(context, groupCode);
                 },
                 style: ElevatedButton.styleFrom(
                   minimumSize: Size(double.infinity, 50),
@@ -79,8 +106,9 @@ class MembersScreen extends StatelessWidget {
     );
   }
 
-  void _showInviteBottomSheet(BuildContext context) {
-    final groupCode = 'ABC123'; // group code example TODO: group code logic
+  void _showInviteBottomSheet(BuildContext context, String groupCode) {
+    final TextEditingController emailController = TextEditingController();
+
     showModalBottomSheet(
       context: context,
       builder: (context) {
@@ -101,6 +129,18 @@ class MembersScreen extends StatelessWidget {
                 ),
               ),
               SizedBox(height: 16),
+              Text(
+                'Send Invitation',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              TextField(
+                controller: emailController,
+                decoration: InputDecoration(
+                  labelText: 'Enter Email',
+                ),
+              ),
+              SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
@@ -108,7 +148,7 @@ class MembersScreen extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   minimumSize: Size(double.infinity, 50),
                 ),
-                child: Text('Send Invitation'), // TODO: send invitation logic
+                child: Text('Send Invitation'),
               ),
             ],
           ),
