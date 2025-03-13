@@ -22,53 +22,35 @@ class _MainWalletScreenState extends State<MainWalletScreen> {
   @override
   void initState() {
     super.initState();
-    _checkForGroupWallet(); // Check for group wallet on initialization
+    _checkForGroupWallet();
   }
 
   Future<void> _checkForGroupWallet() async {
     try {
       final User? user = _auth.currentUser;
-      if (user == null) throw Exception("User not logged in");
+      if (user == null) return;
 
-      String uid = user.uid;
+      String userEmail = user.email ?? '';
 
-      // Step 1: Get all wallet IDs for the user
-      QuerySnapshot userWalletsSnapshot = await _firestore
-          .collection('userWallet')
-          .where('user_id', isEqualTo: uid)
-          .get();
-
-      List<String> walletIds = userWalletsSnapshot.docs
-          .map((doc) => doc['wallet_id'] as String)
-          .toList();
-
-      if (walletIds.isEmpty) {
-        setState(() {
-          hasGroup = false; // No wallets associated
-        });
-        return;
-      }
-
-      // Step 2: Check if any wallet has type "group"
+      // Fetch wallets where the user is a member
       QuerySnapshot walletsSnapshot = await _firestore
           .collection('wallets')
-          .where(FieldPath.documentId, whereIn: walletIds)
+          .where('members', arrayContains: userEmail)
           .where('wallet_type', isEqualTo: 'group')
           .get();
 
       if (walletsSnapshot.docs.isNotEmpty) {
-        // Group wallet found
+        var groupDoc = walletsSnapshot.docs.first;
         setState(() {
           hasGroup = true;
-          groupName = walletsSnapshot.docs.first['name']; // Use the first group's name
+          groupName = groupDoc['name'];
         });
       } else {
         setState(() {
-          hasGroup = false; // No group wallet
+          hasGroup = false;
         });
       }
     } catch (e) {
-      print("Error checking group wallet: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: ${e.toString()}")),
       );
@@ -77,17 +59,17 @@ class _MainWalletScreenState extends State<MainWalletScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Decide second page based on hasGroup
     Widget secondPage = hasGroup
         ? GroupWalletScreen(groupName: groupName)
         : UserHasNoGroupScreen(
-            onGroupCreated: (String createdGroupName) {
-              setState(() {
-                hasGroup = true;
-                groupName = createdGroupName;
-              });
-            },
-          );
+      onGroupCreated: (String createdGroupName) {
+        setState(() {
+          hasGroup = true;
+          groupName = createdGroupName;
+          _addUserToGroupWallet(createdGroupName);
+        });
+      },
+    );
 
     return PageView(
       controller: _pageController,
@@ -96,5 +78,43 @@ class _MainWalletScreenState extends State<MainWalletScreen> {
         secondPage,
       ],
     );
+  }
+
+  Future<void> _addUserToGroupWallet(String groupName) async {
+    try {
+      final User? user = _auth.currentUser;
+      if (user == null) return;
+
+      String uid = user.uid;
+      String userEmail = user.email ?? '';
+
+      QuerySnapshot groupWalletSnapshot = await _firestore
+          .collection('wallets')
+          .where('name', isEqualTo: groupName)
+          .where('wallet_type', isEqualTo: 'group')
+          .get();
+
+      if (groupWalletSnapshot.docs.isNotEmpty) {
+        var groupWalletDoc = groupWalletSnapshot.docs.first;
+        String groupId = groupWalletDoc.id;
+
+        await _firestore.collection('userWallet').add({
+          'user_id': uid,
+          'wallet_id': groupId,
+        });
+
+        var members = List<String>.from(groupWalletDoc['members'] ?? []);
+        if (!members.contains(userEmail)) {
+          members.add(userEmail);
+          await _firestore.collection('wallets').doc(groupId).update({
+            'members': members,
+          });
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: ${e.toString()}")),
+      );
+    }
   }
 }

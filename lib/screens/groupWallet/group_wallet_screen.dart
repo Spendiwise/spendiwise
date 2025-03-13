@@ -24,9 +24,9 @@ class GroupWalletScreen extends StatefulWidget {
   _GroupWalletScreenState createState() => _GroupWalletScreenState();
 }
 
-class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKeepAliveClientMixin {
+class _GroupWalletScreenState extends State<GroupWalletScreen> {
   double balance = 0.0;
-  String? groupId; // 🔹 Artık belge ID'sini kullanıyoruz!
+  String? groupId;
   List<Map<String, dynamic>> transactions = [];
   List<Map<String, dynamic>> goals = [];
   List<String> userGroups = [];
@@ -52,7 +52,7 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKee
       if (groupQuery.docs.isNotEmpty) {
         var groupDoc = groupQuery.docs.first;
         setState(() {
-          groupId = groupDoc.id; // 🔥 Belge ID'si artık `groupId`
+          groupId = groupDoc.id;
           balance = (groupDoc['balance'] ?? 0).toDouble();
         });
       }
@@ -73,7 +73,6 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKee
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -227,7 +226,4 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKee
       ),
     );
   }
-
-  @override
-  bool get wantKeepAlive => true;
 }
