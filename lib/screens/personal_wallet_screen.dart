@@ -42,7 +42,7 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
     super.initState();
     _listenToBalanceChanges(); // Listen for balance changes in real-time
     _fetchTransactions(); // Fetch transactions from Firestore
-    _fetchForecastData(); // Optionally, fetch forecast data
+    //_fetchForecastData(); // Optionally, fetch forecast data
   }
 
   // Real-time listener for balance changes
@@ -106,41 +106,6 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
     }
   }
 
-  Future<void> _fetchForecastData() async {
-    try {
-      final User? user = _auth.currentUser;
-      if (user == null) throw Exception("User not logged in");
-
-      // Example API URL (replace with your actual API endpoint)
-      final String apiUrl = 'http://10.0.2.2:5000/forecast';
-
-      // JSON payload
-      final Map<String, dynamic> payload = {
-        "user_id": user.uid,
-        "category": "Groceries",
-        "duration": "month",
-      };
-
-      final response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(payload),
-      );
-
-      if (response.statusCode == 200) {
-        setState(() {
-          forecastData = jsonDecode(response.body); // Decode and store forecast data
-        });
-      } else {
-        throw Exception('Failed to fetch forecast data: ${response.statusCode}');
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error fetching forecast data: ${e.toString()}")),
-      );
-    }
-  }
-
   void _onTransactionAdded(Map<String, dynamic> newTransaction) {
     final result = addTransactionController(transactions, balance, newTransaction);
 
@@ -165,7 +130,6 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
       );
     }
   }
-//bug fixer
 
   Widget _buildForecastSection() {
     if (forecastData == null || forecastData!.isEmpty) {
@@ -217,23 +181,32 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
           IconButton(
             icon: Icon(Icons.notifications),
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => NotificationsScreen()),
-              );
+              final User? user = _auth.currentUser;
+              if (user != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => NotificationsScreen(userEmail: user.email ?? 'Unknown'),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('User not logged in')),
+                );
+              }
             },
+
           ),
-          IconButton(
-            icon: Icon(Icons.cloud),
-            onPressed: _fetchForecastData, // Trigger forecast data fetch
-          ),
+          //IconButton(
+            //icon: Icon(Icons.cloud),
+            //onPressed: _fetchForecastData, // Trigger forecast data fetch
+          //),
         ],
       ),
       body: Column(
         children: [
           BalanceSection(balance: balance),
           SizedBox(height: 16),
-          _buildForecastSection(),
           SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -265,13 +238,14 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
               ),
             ],
           ),
+
           SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Expanded(
-                child: EventsButton(),
-              ),
+              //Expanded(
+                //child: EventsButton(),
+              //),
             ],
           ),
           if (transactions.isNotEmpty)
@@ -337,4 +311,5 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
 
   @override
   bool get wantKeepAlive => true;
+
 }

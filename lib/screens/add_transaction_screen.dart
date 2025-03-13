@@ -119,7 +119,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   category = newValue!;
                 });
               },
-              items: <String>['Food', 'Entertainment', 'Salary', 'Bills']
+              items: <String>['Groceries', 'Entertainment', 'Utilities','Salary', 'Bills']
                   .map<DropdownMenuItem<String>>((String value) {
                 return DropdownMenuItem<String>(
                   value: value,
