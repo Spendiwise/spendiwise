@@ -3,9 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AddTransactionScreen extends StatefulWidget {
-  final Map<String, dynamic>? transaction; // Accept a transaction for editing
+  final Map<String, dynamic>? transaction; // Accepts a transaction for editing
 
-  AddTransactionScreen({this.transaction}); // Constructor to accept transaction
+  AddTransactionScreen({this.transaction}); // Constructor
 
   @override
   _AddTransactionScreenState createState() => _AddTransactionScreenState();
@@ -15,7 +15,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final TextEditingController descriptionController = TextEditingController();
   final TextEditingController amountController = TextEditingController();
   String category = 'Food'; // Default category
-  bool isIncome = false; // Default to expense
+  bool isIncome = false; // Default: expense
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -23,7 +23,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   void initState() {
     super.initState();
 
-    // If editing an existing transaction, populate fields with current data
+    // If editing an existing transaction, populate fields
     if (widget.transaction != null) {
       descriptionController.text = widget.transaction!['description'];
       amountController.text = widget.transaction!['amount'].toString();
@@ -37,12 +37,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       final User? user = _auth.currentUser;
       if (user == null) throw Exception("User not logged in");
 
-      // Update the user's balance in Firestore
       await _firestore.collection('users').doc(user.uid).update({
         'balance': newBalance,
       });
 
-      // Optionally show a message confirming balance update
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Balance updated successfully!")),
       );
@@ -58,7 +56,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       final User? user = _auth.currentUser;
       if (user == null) throw Exception("User not logged in");
 
-      // Get reference to the user's Firestore document
       final userRef = _firestore.collection('users').doc(user.uid);
 
       final transaction = {
@@ -71,16 +68,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         'user_id': userRef,
       };
 
-      // Add the transaction to the 'transactions' collection
+      // Add transaction
       await _firestore.collection('transactions').add(transaction);
-      // Fetch the current balance for the user
-      final DocumentSnapshot userDoc = await _firestore.collection('users').doc(user.uid).get();
+
+      // Fetch current balance
+      final DocumentSnapshot userDoc = await userRef.get();
       double currentBalance = userDoc.exists ? userDoc['balance'] ?? 0.0 : 0.0;
 
-      // Update balance depending on whether it's an income or expense
+      // Update balance
       double updatedBalance = currentBalance + (transactionData['isIncome'] ? transactionData['amount'] : -transactionData['amount']);
-
-      // Update the user's balance in Firestore
       await _updateUserBalance(updatedBalance);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -89,6 +85,43 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error adding transaction: ${e.toString()}")),
+      );
+    }
+  }
+
+  Future<void> _updateTransactionInFirestore(String transactionId, Map<String, dynamic> updatedData) async {
+    try {
+      final User? user = _auth.currentUser;
+      if (user == null) throw Exception("User not logged in");
+
+      final docRef = _firestore.collection('transactions').doc(transactionId);
+
+      // Fetch old transaction details
+      final oldTransaction = await docRef.get();
+      if (!oldTransaction.exists) throw Exception("Transaction not found");
+
+      double oldAmount = oldTransaction['amount'];
+      bool oldIsIncome = oldTransaction['isIncome'];
+
+      // Update transaction in Firestore
+      await docRef.update(updatedData);
+
+      // Adjust user balance
+      final userRef = _firestore.collection('users').doc(user.uid);
+      final userDoc = await userRef.get();
+      double currentBalance = userDoc.exists ? userDoc['balance'] ?? 0.0 : 0.0;
+
+      // Recalculate balance
+      double updatedBalance = currentBalance - (oldIsIncome ? oldAmount : -oldAmount) + (updatedData['isIncome'] ? updatedData['amount'] : -updatedData['amount']);
+
+      await _updateUserBalance(updatedBalance);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Transaction updated successfully!")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error updating transaction: ${e.toString()}")),
       );
     }
   }
@@ -148,17 +181,23 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 final amount = double.tryParse(amountController.text);
 
                 if (description.isNotEmpty && amount != null) {
-                  final newTransaction = {
+                  final transactionData = {
                     'description': description,
                     'amount': amount,
                     'category': category,
                     'isIncome': isIncome,
-                    'date': DateTime.now().toIso8601String(),
+                    'modified_at': DateTime.now(),
                   };
 
-                  await _addTransactionToFirestore(newTransaction);
+                  if (widget.transaction != null) {
+                    // Editing existing transaction
+                    await _updateTransactionInFirestore(widget.transaction!['id'], transactionData);
+                  } else {
+                    // Adding new transaction
+                    await _addTransactionToFirestore(transactionData);
+                  }
 
-                  Navigator.pop(context); // Go back to the previous screen
+                  Navigator.pop(context); // Go back
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text("Please fill in all fields")),
