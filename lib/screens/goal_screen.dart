@@ -1,23 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:tryout/controllers/goal_controller.dart';
 import 'add_goal_screen.dart';
 
 class GoalScreen extends StatefulWidget {
-  final double balance; // Current balance from HomeScreen
-  final List<Map<String, dynamic>> goals; // Goals passed from HomeScreen
+  final double balance;
+  final String email;
+  final String? groupId;
+  final int goalFlag;
 
-  GoalScreen({required this.balance, required this.goals});
+  GoalScreen({required this.balance, required this.email, this.groupId, required this.goalFlag});
 
   @override
   _GoalScreenState createState() => _GoalScreenState();
 }
 
 class _GoalScreenState extends State<GoalScreen> {
-  late List<Map<String, dynamic>> goals; // Local copy of the goals list
+  List<Map<String, dynamic>> goals = [];
 
   @override
   void initState() {
     super.initState();
-    goals = widget.goals; // Initialize with goals from HomeScreen
+    loadGoals();
+  }
+
+  Future<void> loadGoals() async {
+    List<Map<String, dynamic>> fetchedGoals = await fetchGoals(
+      email: widget.email,
+      groupId: widget.groupId,
+      goalFlag: widget.goalFlag,
+    );
+    setState(() {
+      goals = fetchedGoals;
+    });
   }
 
   @override
@@ -31,8 +45,6 @@ class _GoalScreenState extends State<GoalScreen> {
               itemCount: goals.length,
               itemBuilder: (context, index) {
                 final goal = goals[index];
-
-                // Calculate progress dynamically based on balance
                 double progress = widget.balance >= goal['target']
                     ? goal['target']
                     : widget.balance;
@@ -40,33 +52,16 @@ class _GoalScreenState extends State<GoalScreen> {
                 return Card(
                   child: ListTile(
                     title: Text(goal['title']),
-                    subtitle: Text(
-                      'Progress: \$${progress.toStringAsFixed(2)} / \$${goal['target'].toStringAsFixed(2)}',
-                    ),
+                    subtitle: Text('Progress: \$${progress.toStringAsFixed(2)} / \$${goal['target'].toStringAsFixed(2)}'),
                     trailing: IconButton(
                       icon: Icon(Icons.delete),
                       onPressed: () {
+                        // TODO: Firestore'dan da sil
                         setState(() {
                           goals.removeAt(index);
                         });
                       },
                     ),
-                    onTap: () async {
-                      // Navigate to AddGoalScreen with the goal data for editing
-                      final updatedGoal = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AddGoalScreen(goal: goal),
-                        ),
-                      );
-
-                      // If a goal was returned (edited), update it in the list
-                      if (updatedGoal != null) {
-                        setState(() {
-                          goals[index] = updatedGoal;
-                        });
-                      }
-                    },
                   ),
                 );
               },
@@ -74,13 +69,11 @@ class _GoalScreenState extends State<GoalScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              // Navigate to AddGoalScreen to add a new goal
               final newGoal = await Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => AddGoalScreen()),
+                MaterialPageRoute(builder: (context) => AddGoalScreen(email: widget.email, groupId: widget.groupId, goalFlag: widget.goalFlag)),
               );
 
-              // If a new goal was added, update the list
               if (newGoal != null) {
                 setState(() {
                   goals.add(newGoal);
@@ -90,13 +83,6 @@ class _GoalScreenState extends State<GoalScreen> {
             child: Text('Add New Goal'),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Pass updated goals back to HomeScreen
-          Navigator.pop(context, goals);
-        },
-        child: Icon(Icons.check),
       ),
     );
   }
