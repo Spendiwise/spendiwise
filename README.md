@@ -10,6 +10,8 @@ Expense Tracking and Forecasting Mobile App
 4. [ ] Goal logic
 6. [ ] Limit set and tracking (send notification if limit is exceeded)
 
+## New Features
+- OCR: A feature that reads and records data from a bank's data, such as isbank
 
 ## Group wallet details
 - "Join by Group code" option
@@ -25,10 +27,9 @@ Expense Tracking and Forecasting Mobile App
 
 
 ## Extras
-- Transaction ekranında tarih bilgisi seçme (default olarak mevcut gün seçili)
-- Calendar (swipe left in personal wallet) Bu ekranda da transaction eklenebilir. Ayrıca, her bir gün için balance göstersin.
-- Recursive transaction flag (maas ve aylık abonelik gibi durumlar icin) - default: kapalı
-- Grup wallet için logs özelliği eklenebilir.
+- Selecting date information on the Transaction screen (current day is selected by default)
+- Recursive transaction flag (for situations such as salary and monthly subscription) - default: closed
+- Logs feature can be added to group wallet.
 
 
 ## Known Issues

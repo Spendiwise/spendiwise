@@ -12,8 +12,8 @@ import '../../widgets/add_transaction_fab.dart';
 import 'members_screen.dart';
 import '../../screens/events_subscription_screen.dart';
 import '../../widgets/events_button.dart';
-import 'create_group_wallet_screen.dart'; // Import CreateGroupWalletScreen
-import 'join_group_screen.dart'; // Import JoinGroupScreen
+import 'create_group_wallet_screen.dart';
+import 'join_group_screen.dart';
 
 class GroupWalletScreen extends StatefulWidget {
   final String groupName;
@@ -24,51 +24,48 @@ class GroupWalletScreen extends StatefulWidget {
   _GroupWalletScreenState createState() => _GroupWalletScreenState();
 }
 
-class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKeepAliveClientMixin {
+class _GroupWalletScreenState extends State<GroupWalletScreen> {
   double balance = 0.0;
+  String? groupId;
   List<Map<String, dynamic>> transactions = [];
   List<Map<String, dynamic>> goals = [];
-  List<String> userGroups = []; // No other group
+  List<String> userGroups = [];
 
   late String currentGroupName;
-
-  // Firestore instance
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
     super.initState();
     currentGroupName = widget.groupName;
-    _fetchGroupBalance(); // Fetch balance when the screen is initialized
+    _fetchGroupData();
   }
 
-  // Fetch group balance from Firestore
-  Future<void> _fetchGroupBalance() async {
+  Future<void> _fetchGroupData() async {
     try {
-      var groupDoc = await firestore.collection('wallets').where('name', isEqualTo: currentGroupName).limit(1).get();
+      var groupQuery = await firestore
+          .collection('wallets')
+          .where('name', isEqualTo: currentGroupName)
+          .limit(1)
+          .get();
 
-      if (groupDoc.docs.isNotEmpty) {
-        var groupData = groupDoc.docs.first.data();
+      if (groupQuery.docs.isNotEmpty) {
+        var groupDoc = groupQuery.docs.first;
         setState(() {
-          balance = groupData['balance'] ?? 0.0;
+          groupId = groupDoc.id;
+          balance = (groupDoc['balance'] ?? 0).toDouble();
         });
       }
     } catch (e) {
-      print('Error fetching group balance: $e');
+      print('Error fetching group data: $e');
     }
   }
 
-  // Update group balance in Firestore
   Future<void> _updateGroupBalance(double newBalance) async {
-    try {
-      var groupDoc = await firestore.collection('wallets').where('name', isEqualTo: currentGroupName).limit(1).get();
+    if (groupId == null) return;
 
-      if (groupDoc.docs.isNotEmpty) {
-        var groupRef = groupDoc.docs.first.reference;
-        await groupRef.update({
-          'balance': newBalance,
-        });
-      }
+    try {
+      await firestore.collection('wallets').doc(groupId).update({'balance': newBalance});
     } catch (e) {
       print('Error updating group balance: $e');
     }
@@ -76,18 +73,19 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKee
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Important for AutomaticKeepAliveClientMixin
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: Icon(Icons.group),
           onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => MembersScreen(groupName: currentGroupName),
-              ),
-            );
+            if (groupId != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => MembersScreen(groupId: groupId!, groupName: currentGroupName),
+                ),
+              );
+            }
           },
         ),
         centerTitle: true,
@@ -102,7 +100,6 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKee
           ),
           onSelected: (value) {
             if (value == 'create') {
-              // Navigate to Create Group Wallet Screen
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -116,7 +113,6 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKee
                 }
               });
             } else if (value == 'join') {
-              // Navigate to Join Group Screen
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -132,29 +128,14 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKee
           itemBuilder: (context) {
             if (userGroups.isEmpty) {
               return [
-                PopupMenuItem(
-                  value: 'create',
-                  child: Text('Create group wallet'),
-                ),
-                PopupMenuItem(
-                  value: 'join',
-                  child: Text('Join group wallet'),
-                ),
+                PopupMenuItem(value: 'create', child: Text('Create group wallet')),
+                PopupMenuItem(value: 'join', child: Text('Join group wallet')),
               ];
             } else {
               return [
-                ...userGroups.map((g) => PopupMenuItem(
-                  value: g,
-                  child: Text(g),
-                )),
-                PopupMenuItem(
-                  value: 'create',
-                  child: Text('Create group wallet'),
-                ),
-                PopupMenuItem(
-                  value: 'join',
-                  child: Text('Join group wallet'),
-                ),
+                ...userGroups.map((g) => PopupMenuItem(value: g, child: Text(g))),
+                PopupMenuItem(value: 'create', child: Text('Create group wallet')),
+                PopupMenuItem(value: 'join', child: Text('Join group wallet')),
               ];
             }
           },
@@ -164,8 +145,6 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKee
         children: [
           BalanceSection(balance: balance),
           SizedBox(height: 16),
-
-          // First row for buttons
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -188,7 +167,7 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKee
                     setState(() {
                       transactions = updatedTransactions;
                       balance = updatedBalance;
-                      _updateGroupBalance(balance); // Update balance after transaction
+                      _updateGroupBalance(balance);
                     });
                   },
                 ),
@@ -196,30 +175,19 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKee
             ],
           ),
           SizedBox(height: 8),
-
-          // Second row for buttons
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Expanded(
-                child: ForecastingButton(),
-              ),
-            ],
+            children: [Expanded(child: ForecastingButton())],
           ),
-
           SizedBox(height: 16),
           if (transactions.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Text(
                 'Transaction History',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
-
           Expanded(
             child: TransactionList(
               transactions: transactions,
@@ -229,7 +197,7 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKee
                 setState(() {
                   transactions = result.updatedTransactions;
                   balance = result.updatedBalance;
-                  _updateGroupBalance(balance); // Update balance after deleting transaction
+                  _updateGroupBalance(balance);
                 });
               },
               onEditTransaction: (index, transaction) async {
@@ -238,7 +206,7 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKee
                   setState(() {
                     transactions = result.updatedTransactions;
                     balance = result.updatedBalance;
-                    _updateGroupBalance(balance); // Update balance after editing transaction
+                    _updateGroupBalance(balance);
                   });
                 }
               },
@@ -252,13 +220,10 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> with AutomaticKee
           setState(() {
             transactions = result.updatedTransactions;
             balance = result.updatedBalance;
-            _updateGroupBalance(balance); // Update balance after adding transaction
+            _updateGroupBalance(balance);
           });
         },
       ),
     );
   }
-
-  @override
-  bool get wantKeepAlive => true; // This keeps the state alive
 }

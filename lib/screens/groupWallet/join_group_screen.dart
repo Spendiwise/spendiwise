@@ -1,6 +1,6 @@
-// lib/screens/groupWallet/join_group_screen.dart
-
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class JoinGroupScreen extends StatefulWidget {
   @override
@@ -9,14 +9,80 @@ class JoinGroupScreen extends StatefulWidget {
 
 class _JoinGroupScreenState extends State<JoinGroupScreen> {
   final TextEditingController groupCodeController = TextEditingController();
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+  final FirebaseAuth auth = FirebaseAuth.instance;
+  bool isLoading = false;
+  String? errorMessage;
+
+  Future<void> joinGroup() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
+    String groupCode = groupCodeController.text.trim();
+    User? user = auth.currentUser;
+
+    if (groupCode.isEmpty || user == null) {
+      setState(() {
+        isLoading = false;
+        errorMessage = 'Invalid group code or not logged in.';
+      });
+      return;
+    }
+
+    try {
+      // Check group code is valid
+      var groupQuery = await firestore
+          .collection('wallets')
+          .where('code', isEqualTo: groupCode)
+          .limit(1)
+          .get();
+
+      if (groupQuery.docs.isEmpty) {
+        setState(() {
+          isLoading = false;
+          errorMessage = 'Group not found. Please check the code.';
+        });
+        return;
+      }
+
+      var groupDoc = groupQuery.docs.first;
+      var groupId = groupDoc.id;
+      var members = List<String>.from(groupDoc['members'] ?? []);
+      var userEmail = user.email ?? '';
+
+      if (members.contains(userEmail)) {
+        setState(() {
+          isLoading = false;
+          errorMessage = 'You are already a member of this group.';
+        });
+        return;
+      }
+
+      // Add user `members` array
+      members.add(userEmail);
+      await firestore.collection('wallets').doc(groupId).update({
+        'members': members,
+      });
+
+      setState(() {
+        isLoading = false;
+      });
+
+      Navigator.pop(context, groupDoc['name']);
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+        errorMessage = 'Error joining group: $e';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Join Group'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: Text('Join Group'), centerTitle: true),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -27,14 +93,14 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
                 controller: groupCodeController,
                 decoration: InputDecoration(
                   labelText: 'Group Code',
+                  errorText: errorMessage,
                 ),
               ),
               SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  //TODO: For now, just go back and do nothing. In the future, we will need implement join
-                  Navigator.pop(context);
-                },
+              isLoading
+                  ? CircularProgressIndicator()
+                  : ElevatedButton(
+                onPressed: joinGroup,
                 child: Text('Join'),
               ),
             ],

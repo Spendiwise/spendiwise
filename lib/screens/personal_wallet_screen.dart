@@ -165,7 +165,6 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
       );
     }
   }
-//bug fixer
 
   Widget _buildForecastSection() {
     if (forecastData == null || forecastData!.isEmpty) {
@@ -217,15 +216,25 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
           IconButton(
             icon: Icon(Icons.notifications),
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => NotificationsScreen()),
-              );
+              final User? user = _auth.currentUser;
+              if (user != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => NotificationsScreen(userEmail: user.email ?? 'Unknown'),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('User not logged in')),
+                );
+              }
             },
+
           ),
           IconButton(
-            icon: Icon(Icons.cloud),
-            onPressed: _fetchForecastData, // Trigger forecast data fetch
+          icon: Icon(Icons.cloud),
+          onPressed: _fetchForecastData, // Trigger forecast data fetch
           ),
         ],
       ),
@@ -233,7 +242,6 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
         children: [
           BalanceSection(balance: balance),
           SizedBox(height: 16),
-          _buildForecastSection(),
           SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -265,12 +273,13 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
               ),
             ],
           ),
+
           SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Expanded(
-                child: EventsButton(),
+              child: EventsButton(),
               ),
             ],
           ),
