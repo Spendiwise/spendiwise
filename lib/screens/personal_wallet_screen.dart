@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert'; // For JSON encoding/decoding
 import 'package:http/http.dart' as http; // For making HTTP requests
-
 // Widgets
 import '../widgets/balance_section.dart';
 import '../widgets/goals_button.dart';
@@ -27,15 +26,13 @@ class PersonalWalletScreen extends StatefulWidget {
 class _PersonalWalletScreenState extends State<PersonalWalletScreen> with AutomaticKeepAliveClientMixin {
   double balance = 0.0; // Initial balance
   List<Map<String, dynamic>> transactions = [];
-  List<Map<String, dynamic>> goals = [
-    {'title': 'Save for Vacation', 'target': 5000.0, 'progress': 2000.0},
-    {'title': 'Buy a New Laptop', 'target': 1500.0, 'progress': 500.0},
-  ];
+  List<Map<String, dynamic>> goals = [];
 
   Map<String, dynamic>? forecastData; // Store forecast data
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final String? userEmail = FirebaseAuth.instance.currentUser?.email ?? "unknown@example.com";
 
   @override
   void initState() {
@@ -253,10 +250,12 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
                       goals = updateGoalsController(updatedGoals);
                     });
                   },
-                  goals: goals,
                   balance: balance,
+                  email: userEmail ?? "unknown@example.com",
+                  goalFlag: 0,
                 ),
               ),
+
               SizedBox(width: 8),
               Expanded(
                 child: SearchTransactionButton(

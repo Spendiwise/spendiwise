@@ -5,12 +5,16 @@ typedef GoalsUpdatedCallback = void Function(List<Map<String, dynamic>> updatedG
 
 class GoalsButton extends StatelessWidget {
   final double balance;
-  final List<Map<String, dynamic>> goals;
+  final String email;
+  final String? groupId;
+  final int goalFlag;
   final GoalsUpdatedCallback onGoalsUpdated;
 
   GoalsButton({
     required this.balance,
-    required this.goals,
+    required this.email,
+    this.groupId,
+    required this.goalFlag,
     required this.onGoalsUpdated,
   });
 
@@ -20,18 +24,18 @@ class GoalsButton extends StatelessWidget {
       height: 80,
       child: ElevatedButton(
         onPressed: () async {
-          // Navigate to GoalScreen and wait for updated goals
           final updatedGoals = await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => GoalScreen(
                 balance: balance,
-                goals: List<Map<String, dynamic>>.from(goals),
+                email: email,
+                groupId: groupId,
+                goalFlag: goalFlag,
               ),
             ),
           );
 
-          // If goals are updated, call callback
           if (updatedGoals != null) {
             onGoalsUpdated(updatedGoals);
           }

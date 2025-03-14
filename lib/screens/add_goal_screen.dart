@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:tryout/controllers/goal_controller.dart';
 
 class AddGoalScreen extends StatefulWidget {
-  final Map<String, dynamic>? goal; // Accept goal data for editing
+  final String email;
+  final String? groupId;
+  final int goalFlag;
 
-  AddGoalScreen({this.goal});
+  AddGoalScreen({required this.email, this.groupId, required this.goalFlag});
 
   @override
   _AddGoalScreenState createState() => _AddGoalScreenState();
@@ -14,22 +17,9 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
   final TextEditingController targetController = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-
-    // If editing an existing goal, populate fields with the goal data
-    if (widget.goal != null) {
-      titleController.text = widget.goal!['title'];
-      targetController.text = widget.goal!['target'].toString();
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.goal != null ? 'Edit Goal' : 'Add a Goal'),
-      ),
+      appBar: AppBar(title: Text('Add a Goal')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -45,20 +35,26 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
             ),
             SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 final title = titleController.text;
                 final target = double.tryParse(targetController.text);
 
                 if (title.isNotEmpty && target != null) {
-                  // Return the goal data back to the previous screen (for add/edit)
+                  await addGoalToFirestore(
+                    title: title,
+                    target: target,
+                    email: widget.email,
+                    groupId: widget.groupId,
+                    goalFlag: widget.goalFlag,
+                  );
+
                   Navigator.pop(context, {
                     'title': title,
-                    'target': target, // Target as a double
-                    'progress': widget.goal?['progress'] ?? 0.0, // Keep progress for editing
+                    'target': target,
                   });
                 }
               },
-              child: Text(widget.goal != null ? 'Save Changes' : 'Save Goal'),
+              child: Text('Save Goal'),
             ),
           ],
         ),

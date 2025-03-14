@@ -14,6 +14,7 @@ import '../../screens/events_subscription_screen.dart';
 import '../../widgets/events_button.dart';
 import 'create_group_wallet_screen.dart';
 import 'join_group_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class GroupWalletScreen extends StatefulWidget {
   final String groupName;
@@ -33,6 +34,7 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
 
   late String currentGroupName;
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
+  final String? userEmail = FirebaseAuth.instance.currentUser?.email ?? "unknown@example.com";
 
   @override
   void initState() {
@@ -40,6 +42,7 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
     currentGroupName = widget.groupName;
     _fetchGroupData();
   }
+
 
   Future<void> _fetchGroupData() async {
     try {
@@ -155,10 +158,13 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
                       goals = updateGoalsController(updatedGoals);
                     });
                   },
-                  goals: goals,
                   balance: balance,
+                  email: userEmail ?? "unknown@example.com",
+                  groupId: groupId,
+                  goalFlag: 1,
                 ),
               ),
+
               SizedBox(width: 8),
               Expanded(
                 child: SearchTransactionButton(
