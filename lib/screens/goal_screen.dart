@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:tryout/controllers/goal_controller.dart';
 import 'add_goal_screen.dart';
 
@@ -34,6 +35,15 @@ class _GoalScreenState extends State<GoalScreen> {
     });
   }
 
+  Future<void> deleteGoal(String goalId) async {
+    try {
+      // Delete goal from 'goals' collection
+      await FirebaseFirestore.instance.collection('goals').doc(goalId).delete();
+    } catch (e) {
+      print("Error deleting goal: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -45,20 +55,23 @@ class _GoalScreenState extends State<GoalScreen> {
               itemCount: goals.length,
               itemBuilder: (context, index) {
                 final goal = goals[index];
-                double progress = widget.balance >= goal['target']
-                    ? goal['target']
-                    : widget.balance;
+
+                double target = (goal['target'] as num).toDouble();
+                double balance = widget.balance.toDouble();
+                double progress = balance >= target ? target : balance;
 
                 return Card(
                   child: ListTile(
                     title: Text(goal['title']),
-                    subtitle: Text('Progress: \$${progress.toStringAsFixed(2)} / \$${goal['target'].toStringAsFixed(2)}'),
+                    subtitle: Text(
+                      'Progress: \$${progress.toStringAsFixed(2)} / \$${target.toStringAsFixed(2)}',
+                    ),
                     trailing: IconButton(
                       icon: Icon(Icons.delete),
-                      onPressed: () {
-                        // TODO: Firestore'dan da sil
+                      onPressed: () async {
+                        await deleteGoal(goal['id']); // Delete from Firestore
                         setState(() {
-                          goals.removeAt(index);
+                          goals.removeAt(index); // Remove from UI
                         });
                       },
                     ),
@@ -71,7 +84,13 @@ class _GoalScreenState extends State<GoalScreen> {
             onPressed: () async {
               final newGoal = await Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => AddGoalScreen(email: widget.email, groupId: widget.groupId, goalFlag: widget.goalFlag)),
+                MaterialPageRoute(
+                  builder: (context) => AddGoalScreen(
+                    email: widget.email,
+                    groupId: widget.groupId,
+                    goalFlag: widget.goalFlag,
+                  ),
+                ),
               );
 
               if (newGoal != null) {
