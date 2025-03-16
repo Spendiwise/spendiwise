@@ -6,34 +6,34 @@ class AddGoalScreen extends StatefulWidget {
   final String? groupId;
   final int goalFlag;
 
-  AddGoalScreen({required this.email, this.groupId, required this.goalFlag});
+  const AddGoalScreen({super.key, required this.email, this.groupId, required this.goalFlag});
 
   @override
-  _AddGoalScreenState createState() => _AddGoalScreenState();
+  AddGoalScreenState createState() => AddGoalScreenState();
 }
 
-class _AddGoalScreenState extends State<AddGoalScreen> {
+class AddGoalScreenState extends State<AddGoalScreen> {
   final TextEditingController titleController = TextEditingController();
   final TextEditingController targetController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Add a Goal')),
+      appBar: AppBar(title: const Text('Add a Goal')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             TextField(
               controller: titleController,
-              decoration: InputDecoration(labelText: 'Goal Title'),
+              decoration: const InputDecoration(labelText: 'Goal Title'),
             ),
             TextField(
               controller: targetController,
               keyboardType: TextInputType.number,
-              decoration: InputDecoration(labelText: 'Target Amount'),
+              decoration: const InputDecoration(labelText: 'Target Amount'),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () async {
                 final title = titleController.text;
@@ -48,13 +48,15 @@ class _AddGoalScreenState extends State<AddGoalScreen> {
                     goalFlag: widget.goalFlag,
                   );
 
-                  Navigator.pop(context, {
-                    'title': title,
-                    'target': target,
-                  });
+                  if (context.mounted) {
+                    Navigator.pop(context, {
+                      'title': title,
+                      'target': target,
+                    });
+                  }
                 }
               },
-              child: Text('Save Goal'),
+              child: const Text('Save Goal'),
             ),
           ],
         ),

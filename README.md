@@ -1,7 +1,7 @@
 # Spendiwise
 
 Expense Tracking and Forecasting Mobile App
-version: 1.3
+version: 1.4
 
 ## To-Do List
 1. [ ] Database integration

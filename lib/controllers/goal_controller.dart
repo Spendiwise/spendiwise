@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 Future<void> addGoalToFirestore({
   required String title,
@@ -16,7 +17,9 @@ Future<void> addGoalToFirestore({
       'goalFlag': goalFlag,
     });
   } catch (e) {
-    print("Error adding goal: $e");
+    if (kDebugMode) {
+      print("Error adding goal: $e");
+    }
   }
 }
 
@@ -31,7 +34,9 @@ Future<void> updateGoal({
       'target': newTarget,
     });
   } catch (e) {
-    print("Error updating goal: $e");
+    if (kDebugMode) {
+      print("Error updating goal: $e");
+    }
   }
 }
 
@@ -39,7 +44,9 @@ Future<void> deleteGoal(String goalId) async {
   try {
     await FirebaseFirestore.instance.collection('goals').doc(goalId).delete();
   } catch (e) {
-    print("Error deleting goal: $e");
+    if (kDebugMode) {
+      print("Error deleting goal: $e");
+    }
   }
 }
 
@@ -60,7 +67,9 @@ Future<List<Map<String, dynamic>>> fetchGoals({
       'target': doc['target'],
     }).toList();
   } catch (e) {
-    print("Error fetching goals: $e");
+    if (kDebugMode) {
+      print("Error fetching goals: $e");
+    }
     return [];
   }
 }
