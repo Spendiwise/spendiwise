@@ -45,13 +45,13 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
   // Real-time listener for balance changes
   void _listenToBalanceChanges() {
     final User? user = _auth.currentUser;
-    if (user == null) return; // No user logged in
+    if (user == null) return;
 
     String uid = user.uid;
     _firestore.collection('users').doc(uid).snapshots().listen((snapshot) {
       if (snapshot.exists) {
         setState(() {
-          balance = (snapshot['balance'] ?? 0.0).toDouble(); // Update balance with Firestore data
+          balance = (snapshot['balance'] ?? 0.0).toDouble(); // ✅ Only fetch balance from Firestore
         });
       } else {
         print('User document not found');
@@ -78,25 +78,22 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
       final User? user = _auth.currentUser;
       if (user == null) throw Exception("User not logged in");
 
-      // Fetch transactions where the 'user_id' reference matches the current user's reference
       final snapshot = await _firestore
           .collection('transactions')
           .where('user_id', isEqualTo: _firestore.collection('users').doc(user.uid))
           .get();
 
       List<Map<String, dynamic>> fetchedTransactions = [];
-      double fetchedBalance = 0.0;
 
       for (var doc in snapshot.docs) {
         final data = doc.data();
         data['id'] = doc.id; // Ensure document ID is included
         fetchedTransactions.add(data);
-        fetchedBalance += data['amount'];
       }
 
       setState(() {
         transactions = fetchedTransactions;
-        balance = fetchedBalance;
+        // ❌ REMOVE balance update here!
       });
     } catch (e) {
       print('Error fetching transactions: $e');
@@ -138,16 +135,46 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
     }
   }
 
-  void _onTransactionAdded(Map<String, dynamic> newTransaction) {
-    final result = addTransactionController(transactions, balance, newTransaction);
+  Future<void> onAddTransaction(Map<String, dynamic> newTransaction) async {
+    try {
+      final User? user = _auth.currentUser;
+      if (user == null) throw Exception("User not logged in");
 
-    setState(() {
-      transactions = result.updatedTransactions;
-      balance = result.updatedBalance;
-    });
+      final userRef = _firestore.collection('users').doc(user.uid);
 
-    // Update balance in Firestore
-    _updateBalanceInFirestore();
+      // Ensure amount is stored as a double
+      double amount = (newTransaction['amount'] as num).toDouble();
+
+      // Create a new transaction with proper types
+      final transactionData = {
+        ...newTransaction,
+        'amount': amount, // Ensure it's a double
+        'user_id': userRef, // Firestore DocumentReference
+        'timestamp': FieldValue.serverTimestamp(),
+      };
+
+      // Add the transaction to Firestore
+      final docRef = await _firestore.collection('transactions').add(transactionData);
+
+      // Retrieve the new transaction with its generated ID
+      final addedTransaction = {...transactionData, 'id': docRef.id};
+
+      // Use the transaction controller to update the balance
+      final result = addTransactionController(transactions, balance, addedTransaction);
+
+      // Update UI state
+      setState(() {
+        transactions = result.updatedTransactions;
+        balance = result.updatedBalance;
+      });
+
+      // Update balance in Firestore
+      await _updateBalanceInFirestore();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error adding transaction: ${e.toString()}")),
+      );
+    }
   }
 
   Future<void> deleteTransactionFromFirestore(String transactionId) async {
@@ -333,7 +360,7 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
         ],
       ),
       floatingActionButton: AddTransactionFAB(
-        onTransactionAdded: _onTransactionAdded,
+        onTransactionAdded: onAddTransaction,
       ),
     );
   }
