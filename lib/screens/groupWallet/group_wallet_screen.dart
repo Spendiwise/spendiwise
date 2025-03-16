@@ -153,11 +153,6 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
             children: [
               Expanded(
                 child: GoalsButton(
-                  onGoalsUpdated: (updatedGoals) {
-                    setState(() {
-                      goals = updateGoalsController(updatedGoals);
-                    });
-                  },
                   balance: balance,
                   email: userEmail ?? "unknown@example.com",
                   groupId: groupId,
