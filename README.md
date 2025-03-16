@@ -2,7 +2,7 @@
 
 Expense Tracking and Forecasting Mobile App
 version: 1.6
-.
+
 ## To-Do List
 1. [ ] AI integration ?? 
 2. [ ] Report function
