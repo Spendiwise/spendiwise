@@ -11,8 +11,8 @@ Future<void> addGoalToFirestore({
     await FirebaseFirestore.instance.collection('goals').add({
       'title': title,
       'target': target,
-      'email': goalFlag == 0 ? email : null, // Eğer personal goal ise email kaydediyoruz
-      'groupId': goalFlag == 1 ? groupId : null, // Eğer group goal ise groupId kaydediyoruz
+      'email': goalFlag == 0 ? email : null,
+      'groupId': goalFlag == 1 ? groupId : null,
       'goalFlag': goalFlag,
     });
   } catch (e) {
