@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class NotificationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -12,9 +13,13 @@ class NotificationService {
         'timestamp': FieldValue.serverTimestamp(),
         'isRead': false,
       });
-      print("✅ Notification added successfully!");
+      if (kDebugMode) {
+        print("✅ Notification added successfully!");
+      }
     } catch (e) {
-      print("❌ An error occurred while adding the notification: $e");
+      if (kDebugMode) {
+        print("❌ An error occurred while adding the notification: $e");
+      }
     }
   }
 }
