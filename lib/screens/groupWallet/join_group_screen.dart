@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../screens/main_wallet_screen.dart';
 
 class JoinGroupScreen extends StatefulWidget {
   @override
@@ -70,7 +71,13 @@ class _JoinGroupScreenState extends State<JoinGroupScreen> {
         isLoading = false;
       });
 
-      Navigator.pop(context, groupDoc['name']);
+      // After joining the group, navigate to the main wallet screen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MainWalletScreen(), // Go to main wallet screen
+        ),
+      );
     } catch (e) {
       setState(() {
         isLoading = false;

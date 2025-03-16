@@ -68,6 +68,9 @@ class _MainWalletScreenState extends State<MainWalletScreen> {
           groupName = createdGroupName;
           _addUserToGroupWallet(createdGroupName);
         });
+
+        // After adding user to group, set the PageController to the group wallet screen.
+        _pageController.jumpToPage(1); // This ensures the user is taken to the group wallet screen directly after joining.
       },
     );
 

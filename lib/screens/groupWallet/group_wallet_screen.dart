@@ -85,7 +85,11 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => MembersScreen(groupId: groupId!, groupName: currentGroupName),
+                  builder: (context) => MembersScreen(
+                    groupId: groupId!,
+                    groupName: currentGroupName,
+                    email: userEmail ?? "unknown@example.com",
+                  ),
                 ),
               );
             }
