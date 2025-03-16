@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:tryout/controllers/goal_controller.dart';
 import 'add_goal_screen.dart';
+import 'edit_goal_screen.dart';
 
 class GoalScreen extends StatefulWidget {
   final double balance;
@@ -37,10 +38,29 @@ class _GoalScreenState extends State<GoalScreen> {
 
   Future<void> deleteGoal(String goalId) async {
     try {
-      // Delete goal from 'goals' collection
       await FirebaseFirestore.instance.collection('goals').doc(goalId).delete();
+      setState(() {
+        goals.removeWhere((goal) => goal['id'] == goalId);
+      });
     } catch (e) {
       print("Error deleting goal: $e");
+    }
+  }
+
+  Future<void> editGoal(String goalId, String currentTitle, double currentTarget) async {
+    final updatedGoal = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditGoalScreen(
+          goalId: goalId,
+          currentTitle: currentTitle,
+          currentTarget: currentTarget,
+        ),
+      ),
+    );
+
+    if (updatedGoal != null) {
+      loadGoals();
     }
   }
 
@@ -66,14 +86,20 @@ class _GoalScreenState extends State<GoalScreen> {
                     subtitle: Text(
                       'Progress: \$${progress.toStringAsFixed(2)} / \$${target.toStringAsFixed(2)}',
                     ),
-                    trailing: IconButton(
-                      icon: Icon(Icons.delete),
-                      onPressed: () async {
-                        await deleteGoal(goal['id']); // Delete from Firestore
-                        setState(() {
-                          goals.removeAt(index); // Remove from UI
-                        });
-                      },
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.edit), // Edit button
+                          onPressed: () => editGoal(goal['id'], goal['title'], target),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.delete),
+                          onPressed: () async {
+                            await deleteGoal(goal['id']);
+                          },
+                        ),
+                      ],
                     ),
                   ),
                 );

@@ -245,11 +245,6 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
             children: [
               Expanded(
                 child: GoalsButton(
-                  onGoalsUpdated: (updatedGoals) {
-                    setState(() {
-                      goals = updateGoalsController(updatedGoals);
-                    });
-                  },
                   balance: balance,
                   email: userEmail ?? "unknown@example.com",
                   goalFlag: 0,

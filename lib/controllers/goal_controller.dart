@@ -20,9 +20,37 @@ Future<void> addGoalToFirestore({
   }
 }
 
-Future<List<Map<String, dynamic>>> fetchGoals({required String email, String? groupId, required int goalFlag}) async {
+Future<void> updateGoal({
+  required String goalId,
+  required String newTitle,
+  required double newTarget,
+}) async {
   try {
-    QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('goals')
+    await FirebaseFirestore.instance.collection('goals').doc(goalId).update({
+      'title': newTitle,
+      'target': newTarget,
+    });
+  } catch (e) {
+    print("Error updating goal: $e");
+  }
+}
+
+Future<void> deleteGoal(String goalId) async {
+  try {
+    await FirebaseFirestore.instance.collection('goals').doc(goalId).delete();
+  } catch (e) {
+    print("Error deleting goal: $e");
+  }
+}
+
+Future<List<Map<String, dynamic>>> fetchGoals({
+  required String email,
+  String? groupId,
+  required int goalFlag,
+}) async {
+  try {
+    QuerySnapshot snapshot = await FirebaseFirestore.instance
+        .collection('goals')
         .where(goalFlag == 0 ? 'email' : 'groupId', isEqualTo: goalFlag == 0 ? email : groupId)
         .get();
 
@@ -35,7 +63,4 @@ Future<List<Map<String, dynamic>>> fetchGoals({required String email, String? gr
     print("Error fetching goals: $e");
     return [];
   }
-}
-List<Map<String, dynamic>> updateGoalsController(List<Map<String, dynamic>> updatedGoals) {
-  return List<Map<String, dynamic>>.from(updatedGoals);
 }
