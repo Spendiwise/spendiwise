@@ -267,7 +267,7 @@ class _MembersScreenState extends State<MembersScreen> {
             ],
           ),
         ),
-      ],
-    );
-  }
+],
+);
+}
 }
