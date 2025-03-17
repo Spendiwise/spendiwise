@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/services.dart';
-import '../../screens/main_wallet_screen.dart';
-import 'package:flutter/foundation.dart';
+import 'members_actions.dart';
 
 class MembersScreen extends StatefulWidget {
   final String groupId;
@@ -39,69 +37,6 @@ class _MembersScreenState extends State<MembersScreen> {
     }
   }
 
-  Future<void> _copyGroupCode() async {
-    if (groupCode != null) {
-      await Clipboard.setData(ClipboardData(text: groupCode!));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Group Code copied to clipboard!')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Group Code is not available!')),
-      );
-    }
-  }
-
-  Future<void> _removeMemberFromGroup() async {
-    DocumentReference groupRef = firestore.collection('wallets').doc(widget.groupId);
-
-    // Remove user email from 'members' list
-    await groupRef.update({
-      'members': FieldValue.arrayRemove([widget.email]),
-    });
-
-    // Get the updated document to check if any members are left
-    DocumentSnapshot updatedGroup = await groupRef.get();
-    List<dynamic> updatedMembers = updatedGroup['members'] ?? [];
-
-    // If the members list is empty, delete group completely.
-    if (updatedMembers.isEmpty) {
-      await groupRef.delete();
-      if (kDebugMode) {
-        print('Group deleted because no members left.');
-      }
-    }
-
-    // Update UI
-    setState(() {
-      members.remove(widget.email);
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('You have successfully left the group!')),
-    );
-
-    // Redirect user to MainWalletScreen
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => MainWalletScreen()),
-    );
-  }
-
-  Future<void> _updateGroupDescription() async {
-    if (descriptionController.text.isNotEmpty) {
-        await firestore.collection('wallets').doc(widget.groupId).update({
-          'description': descriptionController.text,
-        });
-        setState(() {
-          groupDescription = descriptionController.text;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Group description updated successfully!')),
-        );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -129,13 +64,49 @@ class _MembersScreenState extends State<MembersScreen> {
             const SizedBox(height: 10),
             _buildMembersList(),
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _removeMemberFromGroup,
-              child: const Text('Leave Group'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-              ),
-            )
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    MembersActions.inviteUser(
+                      firestore: firestore,
+                      groupId: widget.groupId,
+                      context: context,
+                      members: members,
+                      addMemberCallback: (invitedEmail) {
+                        setState(() {
+                          members.add(invitedEmail);
+                        });
+                      },
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                  ),
+                  child: const Text('Invite User'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    MembersActions.removeMemberFromGroup(
+                      firestore: firestore,
+                      groupId: widget.groupId,
+                      email: widget.email,
+                      context: context,
+                      removeMemberCallback: (removedEmail) {
+                        setState(() {
+                          members.remove(removedEmail);
+                        });
+                      },
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                  ),
+                  child: const Text('Leave Group'),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -144,7 +115,7 @@ class _MembersScreenState extends State<MembersScreen> {
 
   Widget _buildGroupCode() {
     if (groupCode == null) {
-      return const Center(child: CircularProgressIndicator()); // Group code loading
+      return const Center(child: CircularProgressIndicator());
     } else {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
@@ -165,7 +136,7 @@ class _MembersScreenState extends State<MembersScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.copy, color: Colors.white),
-              onPressed: _copyGroupCode,
+              onPressed: () => MembersActions.copyGroupCode(groupCode, context),
             ),
           ],
         ),
@@ -205,15 +176,15 @@ class _MembersScreenState extends State<MembersScreen> {
         Container(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
           decoration: BoxDecoration(
-            color: Colors.green, // GreenAccent used for background color
+            color: Colors.green,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                "Description: ", // Title for description
-                style: const TextStyle(
+              const Text(
+                "Description: ",
+                style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -221,14 +192,14 @@ class _MembersScreenState extends State<MembersScreen> {
               ),
               Expanded(
                 child: Text(
-                  groupDescription ?? 'No description available', // Display description
+                  groupDescription ?? 'No description available',
                   style: const TextStyle(
                     fontSize: 18,
                     fontStyle: FontStyle.italic,
                     color: Colors.white,
                   ),
-                  overflow: TextOverflow.ellipsis, // Handles long text gracefully
-                  maxLines: 2, // Limits to 2 lines
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
                 ),
               ),
               IconButton(
@@ -253,7 +224,17 @@ class _MembersScreenState extends State<MembersScreen> {
                           ),
                           TextButton(
                             onPressed: () {
-                              _updateGroupDescription();
+                              MembersActions.updateGroupDescription(
+                                firestore: firestore,
+                                groupId: widget.groupId,
+                                newDescription: descriptionController.text,
+                                context: context,
+                                updateDescriptionCallback: (newDesc) {
+                                  setState(() {
+                                    groupDescription = newDesc;
+                                  });
+                                },
+                              );
                               Navigator.pop(context);
                             },
                             child: const Text('Save'),
@@ -267,7 +248,7 @@ class _MembersScreenState extends State<MembersScreen> {
             ],
           ),
         ),
-],
-);
-}
+      ],
+    );
+  }
 }

@@ -295,7 +295,7 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
             ],
           ),
 
-          SizedBox(height: 8),
+          /*SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -304,6 +304,7 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
               ),
             ],
           ),
+          */
           if (transactions.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
