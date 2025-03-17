@@ -8,7 +8,6 @@ Future<void> addGoalToFirestore({
   String? groupId,
   required int goalFlag,
 }) async {
-  try {
     await FirebaseFirestore.instance.collection('goals').add({
       'title': title,
       'target': target,
@@ -16,11 +15,6 @@ Future<void> addGoalToFirestore({
       'groupId': goalFlag == 1 ? groupId : null,
       'goalFlag': goalFlag,
     });
-  } catch (e) {
-    if (kDebugMode) {
-      print("Error adding goal: $e");
-    }
-  }
 }
 
 Future<void> updateGoal({
@@ -28,26 +22,14 @@ Future<void> updateGoal({
   required String newTitle,
   required double newTarget,
 }) async {
-  try {
     await FirebaseFirestore.instance.collection('goals').doc(goalId).update({
       'title': newTitle,
       'target': newTarget,
     });
-  } catch (e) {
-    if (kDebugMode) {
-      print("Error updating goal: $e");
-    }
-  }
 }
 
 Future<void> deleteGoal(String goalId) async {
-  try {
     await FirebaseFirestore.instance.collection('goals').doc(goalId).delete();
-  } catch (e) {
-    if (kDebugMode) {
-      print("Error deleting goal: $e");
-    }
-  }
 }
 
 Future<List<Map<String, dynamic>>> fetchGoals({

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:tryout/controllers/goal_controller.dart';
 import 'add_goal_screen.dart';
 import 'edit_goal_screen.dart';
 
@@ -17,98 +16,90 @@ class GoalScreen extends StatefulWidget {
 }
 
 class _GoalScreenState extends State<GoalScreen> {
-  List<Map<String, dynamic>> goals = [];
-
-  @override
-  void initState() {
-    super.initState();
-    loadGoals();
-  }
-
-  Future<void> loadGoals() async {
-    List<Map<String, dynamic>> fetchedGoals = await fetchGoals(
-      email: widget.email,
-      groupId: widget.groupId,
-      goalFlag: widget.goalFlag,
-    );
-    setState(() {
-      goals = fetchedGoals;
-    });
-  }
-
-  Future<void> deleteGoal(String goalId) async {
-    try {
-      await FirebaseFirestore.instance.collection('goals').doc(goalId).delete();
-      setState(() {
-        goals.removeWhere((goal) => goal['id'] == goalId);
-      });
-    } catch (e) {
-      print("Error deleting goal: $e");
-    }
-  }
-
-  Future<void> editGoal(String goalId, String currentTitle, double currentTarget) async {
-    final updatedGoal = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => EditGoalScreen(
-          goalId: goalId,
-          currentTitle: currentTitle,
-          currentTarget: currentTarget,
-        ),
-      ),
-    );
-
-    if (updatedGoal != null) {
-      loadGoals();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    // Determine query field based on goalFlag
+    final String queryField = widget.goalFlag == 0 ? 'email' : 'groupId';
+    final dynamic queryValue = widget.goalFlag == 0 ? widget.email : widget.groupId;
+
     return Scaffold(
       appBar: AppBar(title: Text('Your Goals')),
       body: Column(
         children: [
           Expanded(
-            child: ListView.builder(
-              itemCount: goals.length,
-              itemBuilder: (context, index) {
-                final goal = goals[index];
+            // Use StreamBuilder to listen to real-time changes in "goals" collection
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('goals')
+                  .where(queryField, isEqualTo: queryValue)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
+                final goalDocs = snapshot.data!.docs;
+                if (goalDocs.isEmpty) {
+                  return Center(child: Text('No goals found.'));
+                }
+                return ListView.builder(
+                  itemCount: goalDocs.length,
+                  itemBuilder: (context, index) {
+                    final doc = goalDocs[index];
+                    final goalData = doc.data() as Map<String, dynamic>;
+                    final goalId = doc.id;
+                    final title = goalData['title'] ?? '';
+                    final target = (goalData['target'] as num).toDouble();
+                    // Calculate progress based on widget.balance and target
+                    final progress = widget.balance >= target ? target : widget.balance;
 
-                double target = (goal['target'] as num).toDouble();
-                double balance = widget.balance.toDouble();
-                double progress = balance >= target ? target : balance;
-
-                return Card(
-                  child: ListTile(
-                    title: Text(goal['title']),
-                    subtitle: Text(
-                      'Progress: \$${progress.toStringAsFixed(2)} / \$${target.toStringAsFixed(2)}',
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.edit), // Edit button
-                          onPressed: () => editGoal(goal['id'], goal['title'], target),
+                    return Card(
+                      child: ListTile(
+                        title: Text(title),
+                        subtitle: Text(
+                          'Progress: \$${progress.toStringAsFixed(2)} / \$${target.toStringAsFixed(2)}',
                         ),
-                        IconButton(
-                          icon: Icon(Icons.delete),
-                          onPressed: () async {
-                            await deleteGoal(goal['id']);
-                          },
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Edit button
+                            IconButton(
+                              icon: Icon(Icons.edit),
+                              onPressed: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => EditGoalScreen(
+                                      goalId: goalId,
+                                      currentTitle: title,
+                                      currentTarget: target,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            // Delete button
+                            IconButton(
+                              icon: Icon(Icons.delete),
+                              onPressed: () async {
+                                await FirebaseFirestore.instance.collection('goals').doc(goalId).delete();
+                              },
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 );
               },
             ),
           ),
+          // Button to add a new goal
           ElevatedButton(
             onPressed: () async {
-              final newGoal = await Navigator.push(
+              await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => AddGoalScreen(
@@ -118,12 +109,6 @@ class _GoalScreenState extends State<GoalScreen> {
                   ),
                 ),
               );
-
-              if (newGoal != null) {
-                setState(() {
-                  goals.add(newGoal);
-                });
-              }
             },
             child: Text('Add New Goal'),
           ),

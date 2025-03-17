@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../controllers/random_code_generator.dart';
+import '../../screens/main_wallet_screen.dart';
 
 class CreateGroupWalletScreen extends StatefulWidget {
   @override
@@ -40,6 +41,7 @@ class _CreateGroupWalletScreenState extends State<CreateGroupWalletScreen> {
 
       String groupCode = await generateUniqueCode();
 
+      // Create group wallet document with members field containing user's email
       DocumentReference walletRef = await firestore.collection('wallets').add({
         'name': groupName,
         'description': groupDescription,
@@ -47,6 +49,7 @@ class _CreateGroupWalletScreenState extends State<CreateGroupWalletScreen> {
         'balance': 0,
         'code': groupCode,
         'wallet_type': 'group',
+        'members': [user.email], // Adding user's email to the members array
       });
 
       await firestore.collection('userWallet').add({
@@ -55,7 +58,13 @@ class _CreateGroupWalletScreenState extends State<CreateGroupWalletScreen> {
         'role': 'admin',
       });
 
-      Navigator.pop(context, groupName);
+      // Navigate to main wallet screen after creating the group wallet
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MainWalletScreen(), // Go to main wallet screen
+        ),
+      );
     } catch (e) {
       print('Error creating group: $e');
       setState(() {

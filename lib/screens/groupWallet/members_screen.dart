@@ -107,7 +107,7 @@ class _MembersScreenState extends State<MembersScreen> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: Text('${widget.groupName} Members'),
+        title: Text(widget.groupName),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

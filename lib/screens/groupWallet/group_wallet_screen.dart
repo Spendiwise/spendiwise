@@ -41,11 +41,10 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
     super.initState();
     currentGroupName = widget.groupName;
     _fetchGroupData();
+    _fetchUserGroups(); //We pull the groups the user is a member of.
   }
 
-
   Future<void> _fetchGroupData() async {
-    try {
       var groupQuery = await firestore
           .collection('wallets')
           .where('name', isEqualTo: currentGroupName)
@@ -59,19 +58,26 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
           balance = (groupDoc['balance'] ?? 0).toDouble();
         });
       }
-    } catch (e) {
-      print('Error fetching group data: $e');
-    }
+  }
+
+  Future<void> _fetchUserGroups() async {
+      // Query to fetch groups where the user's email exists in the "members" array
+      QuerySnapshot querySnapshot = await firestore
+          .collection('wallets')
+          .where('members', arrayContains: userEmail)
+          .get();
+      List<String> groups = [];
+      for (var doc in querySnapshot.docs) {
+        groups.add(doc['name']);
+      }
+      setState(() {
+        userGroups = groups;
+      });
   }
 
   Future<void> _updateGroupBalance(double newBalance) async {
     if (groupId == null) return;
-
-    try {
       await firestore.collection('wallets').doc(groupId).update({'balance': newBalance});
-    } catch (e) {
-      print('Error updating group balance: $e');
-    }
   }
 
   @override
@@ -79,7 +85,7 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: Icon(Icons.group),
+          icon: const Icon(Icons.group),
           onPressed: () {
             if (groupId != null) {
               Navigator.push(
@@ -101,8 +107,8 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(currentGroupName),
-              SizedBox(width: 8),
-              Icon(Icons.arrow_drop_down),
+              const SizedBox(width: 8),
+              const Icon(Icons.arrow_drop_down),
             ],
           ),
           onSelected: (value) {
@@ -117,6 +123,7 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
                   setState(() {
                     currentGroupName = createdGroupName;
                   });
+                  _fetchUserGroups(); // Refresh groups after new group creation
                 }
               });
             } else if (value == 'join') {
@@ -125,33 +132,51 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
                 MaterialPageRoute(
                   builder: (context) => JoinGroupScreen(),
                 ),
-              );
+              ).then((_) {
+                _fetchUserGroups(); // Refresh groups after joining the group
+              });
             } else {
+              // User selects existing group
               setState(() {
                 currentGroupName = value;
               });
+              _fetchGroupData(); // Retrieve data of selected group
             }
           },
           itemBuilder: (context) {
-            if (userGroups.isEmpty) {
-              return [
-                PopupMenuItem(value: 'create', child: Text('Create group wallet')),
-                PopupMenuItem(value: 'join', child: Text('Join group wallet')),
-              ];
-            } else {
-              return [
-                ...userGroups.map((g) => PopupMenuItem(value: g, child: Text(g))),
-                PopupMenuItem(value: 'create', child: Text('Create group wallet')),
-                PopupMenuItem(value: 'join', child: Text('Join group wallet')),
-              ];
+            List<PopupMenuEntry<String>> items = [];
+            // Add groups the user is a member of
+            if (userGroups.isNotEmpty) {
+              items.addAll(
+                userGroups.map((group) => PopupMenuItem<String>(
+                  value: group,
+                  child: Text(group),
+                )),
+              );
+              items.add(const PopupMenuDivider());
             }
+            // Join a group wallet option
+            items.add(
+              const PopupMenuItem<String>(
+                value: 'join',
+                child: Text('Join a group wallet'),
+              ),
+            );
+            // Create a group wallet option
+            items.add(
+              const PopupMenuItem<String>(
+                value: 'create',
+                child: Text('Create a group wallet'),
+              ),
+            );
+            return items;
           },
         ),
       ),
       body: Column(
         children: [
           BalanceSection(balance: balance),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -163,8 +188,7 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
                   goalFlag: 1,
                 ),
               ),
-
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Expanded(
                 child: SearchTransactionButton(
                   transactions: transactions,
@@ -179,15 +203,15 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
               ),
             ],
           ),
-          SizedBox(height: 8),
-          Row(
+          const SizedBox(height: 8),
+          const Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [Expanded(child: ForecastingButton())],
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           if (transactions.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.0),
               child: Text(
                 'Transaction History',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
