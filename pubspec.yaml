@@ -97,3 +97,4 @@ flutter:
 
   assets:
     - assets/images/logo.png  # Declare your logo asset here
+    - assets/images/background.jpg
