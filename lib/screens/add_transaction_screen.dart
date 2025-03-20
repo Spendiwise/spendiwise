@@ -4,8 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   final Map<String, dynamic>? transaction; // Accepts a transaction for editing
+  final String? groupId; // Added group ID to track if it's a group transaction
 
-  AddTransactionScreen({this.transaction}); // Constructor
+  AddTransactionScreen({this.transaction, this.groupId}); // Constructor
 
   @override
   _AddTransactionScreenState createState() => _AddTransactionScreenState();
@@ -51,33 +52,51 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     }
   }
 
-  Future<void> _addTransactionToFirestore(Map<String, dynamic> transactionData) async {
+  Future<void> _addTransactionToFirestore(Map<String, dynamic> transactionData, {String? groupId}) async {
     try {
-      final User? user = _auth.currentUser;
+      final User? user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception("User not logged in");
 
-      final userRef = _firestore.collection('users').doc(user.uid);
+      CollectionReference transactionCollection;
+      DocumentReference balanceRef;
+
+      if (groupId != null) {
+        // Add transaction to the group wallet
+        transactionCollection = FirebaseFirestore.instance
+            .collection('wallets')
+            .doc(groupId)
+            .collection('transactions');
+
+        balanceRef = FirebaseFirestore.instance.collection('wallets').doc(groupId);
+      } else {
+        // Add transaction to personal wallet
+        transactionCollection = FirebaseFirestore.instance
+            .collection('transactions')
+            .doc(user.uid)
+            .collection('transactions');
+
+        balanceRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      }
 
       final transaction = {
-        'amount': transactionData['amount'],
+        'amount': (transactionData['amount'] as num).toDouble(),
         'category': transactionData['category'],
         'date': DateTime.now(),
         'description': transactionData['description'],
         'modified_at': DateTime.now(),
         'isIncome': transactionData['isIncome'],
-        'user_id': userRef,
+        'user_id': user.uid, // Track who made the transaction
+        'group_id': groupId, // Store group ID if applicable
       };
 
-      // Add transaction
-      await _firestore.collection('transactions').add(transaction);
+      await transactionCollection.add(transaction);
 
-      // Fetch current balance
-      final DocumentSnapshot userDoc = await userRef.get();
-      double currentBalance = userDoc.exists ? userDoc['balance'] ?? 0.0 : 0.0;
+      // Update balance for the respective wallet (group or personal)
+      final balanceDoc = await balanceRef.get();
+      double currentBalance = balanceDoc.exists ? (balanceDoc['balance'] ?? 0.0) : 0.0;
+      double newBalance = currentBalance + (transaction['isIncome'] ? transaction['amount'] : -transaction['amount']);
 
-      // Update balance
-      double updatedBalance = currentBalance + (transactionData['isIncome'] ? transactionData['amount'] : -transactionData['amount']);
-      await _updateUserBalance(updatedBalance);
+      await balanceRef.update({'balance': newBalance});
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Transaction added successfully!")),
@@ -88,6 +107,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       );
     }
   }
+
 
   Future<void> _updateTransactionInFirestore(String transactionId, Map<String, dynamic> updatedData) async {
     try {
@@ -100,21 +120,35 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       final oldTransaction = await docRef.get();
       if (!oldTransaction.exists) throw Exception("Transaction not found");
 
-      double oldAmount = oldTransaction['amount'];
+      double oldAmount = (oldTransaction['amount'] as num).toDouble();
       bool oldIsIncome = oldTransaction['isIncome'];
 
       // Update transaction in Firestore
       await docRef.update(updatedData);
 
-      // Adjust user balance
+      // Fetch current balance
       final userRef = _firestore.collection('users').doc(user.uid);
       final userDoc = await userRef.get();
-      double currentBalance = userDoc.exists ? userDoc['balance'] ?? 0.0 : 0.0;
+      double currentBalance = userDoc.exists ? (userDoc['balance'] ?? 0.0) : 0.0;
 
-      // Recalculate balance
-      double updatedBalance = currentBalance - (oldIsIncome ? oldAmount : -oldAmount) + (updatedData['isIncome'] ? updatedData['amount'] : -updatedData['amount']);
+      // Correct balance update based on income/expense changes
+      double updatedAmount = (updatedData['amount'] as num).toDouble();
+      bool updatedIsIncome = updatedData['isIncome'];
 
-      await _updateUserBalance(updatedBalance);
+      double newBalance = currentBalance;
+
+      // If the income/expense type changes, reverse old effect and apply new one
+      if (oldIsIncome != updatedIsIncome) {
+        newBalance -= oldIsIncome ? oldAmount : -oldAmount; // Remove old transaction impact
+        newBalance += updatedIsIncome ? updatedAmount : -updatedAmount; // Add new impact
+      } else {
+        // If the type is the same, just adjust for the amount difference
+        newBalance += updatedIsIncome
+            ? (updatedAmount - oldAmount)
+            : (oldAmount - updatedAmount);
+      }
+
+      await _updateUserBalance(newBalance);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Transaction updated successfully!")),
@@ -190,14 +224,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   };
 
                   if (widget.transaction != null) {
-                    // Editing existing transaction
+                    // Editing an existing transaction
                     await _updateTransactionInFirestore(widget.transaction!['id'], transactionData);
                   } else {
-                    // Adding new transaction
-                    await _addTransactionToFirestore(transactionData);
+                    // Check if the transaction is for a group wallet or personal wallet
+                    await _addTransactionToFirestore(transactionData, groupId: widget.groupId);
                   }
 
-                  Navigator.pop(context); // Go back
+                  Navigator.pop(context); // Go back after saving
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text("Please fill in all fields")),

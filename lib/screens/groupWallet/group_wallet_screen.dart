@@ -15,6 +15,8 @@ import '../../widgets/events_button.dart';
 import 'create_group_wallet_screen.dart';
 import 'join_group_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../screens/add_transaction_screen.dart';
+import '../../widgets/group_transaction_list.dart';
 
 class GroupWalletScreen extends StatefulWidget {
   final String groupName;
@@ -218,40 +220,24 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
               ),
             ),
           Expanded(
-            child: TransactionList(
-              transactions: transactions,
-              balance: balance,
-              onDeleteTransaction: (index) {
-                final result = deleteTransactionController(transactions, balance, index);
-                setState(() {
-                  transactions = result.updatedTransactions;
-                  balance = result.updatedBalance;
-                  _updateGroupBalance(balance);
-                });
-              },
-              onEditTransaction: (index, transaction) async {
-                final result = await editTransactionController(context, transactions, balance, index);
-                if (result != null) {
-                  setState(() {
-                    transactions = result.updatedTransactions;
-                    balance = result.updatedBalance;
-                    _updateGroupBalance(balance);
-                  });
-                }
-              },
-            ),
+            child: groupId != null
+                ? GroupTransactionList(groupId: groupId!)
+                : Center(child: Text("Select a group wallet")),
           ),
         ],
       ),
-      floatingActionButton: AddTransactionFAB(
-        onTransactionAdded: (newTransaction) {
-          final result = addTransactionController(transactions, balance, newTransaction);
-          setState(() {
-            transactions = result.updatedTransactions;
-            balance = result.updatedBalance;
-            _updateGroupBalance(balance);
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AddTransactionScreen(groupId: groupId),
+            ),
+          ).then((_) {
+            _fetchGroupData(); // Refresh group balance after returning
           });
         },
+        child: Icon(Icons.add),
       ),
     );
   }
