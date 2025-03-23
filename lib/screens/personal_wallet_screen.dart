@@ -10,11 +10,10 @@ import '../widgets/search_transaction_button.dart';
 import '../widgets/transaction_list.dart';
 import '../widgets/add_transaction_fab.dart';
 import '../widgets/events_button.dart';
-
+import '../widgets/automatic_transaction_button.dart';
 // Controllers
 import '../controllers/goal_controller.dart';
 import '../controllers/transaction_controller.dart';
-
 // Screens
 import 'notifications_screen.dart';
 
@@ -37,7 +36,7 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
   @override
   void initState() {
     super.initState();
-    _listenToBalanceChanges(); // Listen for balance changes in real-time
+    _listenToBalanceChanges();
     _fetchTransactions(); // Fetch transactions from Firestore
     _fetchForecastData(); // Optionally, fetch forecast data
   }
@@ -51,7 +50,7 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
     _firestore.collection('users').doc(uid).snapshots().listen((snapshot) {
       if (snapshot.exists) {
         setState(() {
-          balance = (snapshot['balance'] ?? 0.0).toDouble(); // ✅ Only fetch balance from Firestore
+          balance = (snapshot['balance'] ?? 0.0).toDouble();
         });
       } else {
         print('User document not found');
@@ -93,7 +92,6 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
 
       setState(() {
         transactions = fetchedTransactions;
-        // ❌ REMOVE balance update here!
       });
     } catch (e) {
       print('Error fetching transactions: $e');
@@ -254,18 +252,16 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
                 );
               }
             },
-
           ),
           IconButton(
-          icon: Icon(Icons.cloud),
-          onPressed: _fetchForecastData, // Trigger forecast data fetch
+            icon: Icon(Icons.cloud),
+            onPressed: _fetchForecastData, // Trigger forecast data fetch
           ),
         ],
       ),
       body: Column(
         children: [
           BalanceSection(balance: balance),
-          SizedBox(height: 16),
           SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -277,7 +273,6 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
                   goalFlag: 0,
                 ),
               ),
-
               SizedBox(width: 8),
               Expanded(
                 child: SearchTransactionButton(
@@ -287,24 +282,15 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
                       transactions = updatedTransactions;
                       balance = updatedBalance;
                     });
-
                     _updateBalanceInFirestore();
                   },
                 ),
               ),
             ],
           ),
-
-          /*SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Expanded(
-              child: EventsButton(),
-              ),
-            ],
-          ),
-          */
+          SizedBox(height: 16),
+          // Automatic Transaction Button
+          AutomaticTransactionButton(),
           if (transactions.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -352,7 +338,6 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
                     transactions = result.updatedTransactions;
                     balance = result.updatedBalance;
                   });
-
                   _updateBalanceInFirestore();
                 }
               },

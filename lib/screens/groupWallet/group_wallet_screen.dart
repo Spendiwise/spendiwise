@@ -17,6 +17,7 @@ import 'join_group_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../screens/add_transaction_screen.dart';
 import '../../widgets/group_transaction_list.dart';
+import '../../widgets/automatic_transaction_button.dart';
 
 class GroupWalletScreen extends StatefulWidget {
   final String groupName;
@@ -47,39 +48,39 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
   }
 
   Future<void> _fetchGroupData() async {
-      var groupQuery = await firestore
-          .collection('wallets')
-          .where('name', isEqualTo: currentGroupName)
-          .limit(1)
-          .get();
+    var groupQuery = await firestore
+        .collection('wallets')
+        .where('name', isEqualTo: currentGroupName)
+        .limit(1)
+        .get();
 
-      if (groupQuery.docs.isNotEmpty) {
-        var groupDoc = groupQuery.docs.first;
-        setState(() {
-          groupId = groupDoc.id;
-          balance = (groupDoc['balance'] ?? 0).toDouble();
-        });
-      }
+    if (groupQuery.docs.isNotEmpty) {
+      var groupDoc = groupQuery.docs.first;
+      setState(() {
+        groupId = groupDoc.id;
+        balance = (groupDoc['balance'] ?? 0).toDouble();
+      });
+    }
   }
 
   Future<void> _fetchUserGroups() async {
-      // Query to fetch groups where the user's email exists in the "members" array
-      QuerySnapshot querySnapshot = await firestore
-          .collection('wallets')
-          .where('members', arrayContains: userEmail)
-          .get();
-      List<String> groups = [];
-      for (var doc in querySnapshot.docs) {
-        groups.add(doc['name']);
-      }
-      setState(() {
-        userGroups = groups;
-      });
+    // Query to fetch groups where the user's email exists in the "members" array
+    QuerySnapshot querySnapshot = await firestore
+        .collection('wallets')
+        .where('members', arrayContains: userEmail)
+        .get();
+    List<String> groups = [];
+    for (var doc in querySnapshot.docs) {
+      groups.add(doc['name']);
+    }
+    setState(() {
+      userGroups = groups;
+    });
   }
 
   Future<void> _updateGroupBalance(double newBalance) async {
     if (groupId == null) return;
-      await firestore.collection('wallets').doc(groupId).update({'balance': newBalance});
+    await firestore.collection('wallets').doc(groupId).update({'balance': newBalance});
   }
 
   @override
@@ -205,11 +206,10 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          // Automatic Transaction Button
+          AutomaticTransactionButton(),
           const SizedBox(height: 8),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [Expanded(child: ForecastingButton())],
-          ),
           const SizedBox(height: 16),
           if (transactions.isNotEmpty)
             const Padding(
