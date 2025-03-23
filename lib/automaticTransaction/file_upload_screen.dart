@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../automaticTransaction/text_extractor.dart';
 
 class FileUploadScreen extends StatefulWidget {
   const FileUploadScreen({super.key});
@@ -28,12 +29,13 @@ class _FileUploadScreenState extends State<FileUploadScreen> {
 
   void proceedNext() {
     if (selectedFile != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Image selected, you can proceed!')),
+      TextExtractor.extractTextFromImage(
+        context: context,
+        imageFile: selectedFile!,
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select an image first!')),
+        const SnackBar(content: Text('Please select an image first.')),
       );
     }
   }
@@ -42,7 +44,7 @@ class _FileUploadScreenState extends State<FileUploadScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Upload Image"),
+        title: const Text("Upload Statement"),
         centerTitle: true,
       ),
       body: Padding(
@@ -67,11 +69,7 @@ class _FileUploadScreenState extends State<FileUploadScreen> {
                   padding: const EdgeInsets.all(15.0),
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.image,
-                        size: 40,
-                        color: Colors.blue,
-                      ),
+                      const Icon(Icons.image, size: 40, color: Colors.blue),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
