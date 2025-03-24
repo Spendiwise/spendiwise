@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:convert'; // For JSON encoding/decoding
-import 'package:http/http.dart' as http; // For making HTTP requests
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 
 class ForecastingScreen extends StatefulWidget {
@@ -12,23 +12,20 @@ class ForecastingScreen extends StatefulWidget {
 
 class _ForecastingScreenState extends State<ForecastingScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-
   String? _selectedCategory;
   String? _selectedDuration;
   Map<String, dynamic>? forecastData;
 
-  final List<String> categories = ['Groceries', 'Entertainment','Food', 'Utilities', 'Dining'];  // Example categories
-  final List<String> durations = ['week', 'month'];  // Example durations
+  final List<String> categories = ['Groceries', 'Entertainment', 'Food', 'Utilities', 'Dining'];
+  final List<String> durations = ['week', 'month'];
 
   Future<void> _fetchForecastData(String category, String duration) async {
     try {
       final User? user = _auth.currentUser;
       if (user == null) throw Exception("User not logged in");
 
-      // Example API URL (replace with your actual API endpoint)
-      final String apiUrl = 'http://192.168.89.220:5000/forecast';
+      final String apiUrl = 'http://10.0.2.2:5000/forecast';
 
-      // JSON payload
       final Map<String, dynamic> payload = {
         "user_id": user.uid,
         "category": category,
@@ -43,7 +40,7 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
 
       if (response.statusCode == 200) {
         setState(() {
-          forecastData = jsonDecode(response.body); // Decode and store forecast data
+          forecastData = jsonDecode(response.body);
         });
       } else {
         throw Exception('Failed to fetch forecast data: ${response.statusCode}');
@@ -58,9 +55,7 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Forecasting'),
-      ),
+      appBar: AppBar(title: const Text('Forecasting')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -73,7 +68,7 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
                   _selectedCategory = newValue;
                 });
               },
-              items: categories.map<DropdownMenuItem<String>>((String value) {
+              items: categories.map((String value) {
                 return DropdownMenuItem<String>(
                   value: value,
                   child: Text(value),
@@ -89,7 +84,7 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
                   _selectedDuration = newValue;
                 });
               },
-              items: durations.map<DropdownMenuItem<String>>((String value) {
+              items: durations.map((String value) {
                 return DropdownMenuItem<String>(
                   value: value,
                   child: Text(value),
