@@ -16,6 +16,7 @@ import '../controllers/goal_controller.dart';
 import '../controllers/transaction_controller.dart';
 // Screens
 import 'notifications_screen.dart';
+import 'forecasting_screen.dart';
 
 class PersonalWalletScreen extends StatefulWidget {
   @override
@@ -49,6 +50,8 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
     String uid = user.uid;
     _firestore.collection('users').doc(uid).snapshots().listen((snapshot) {
       if (snapshot.exists) {
+        double fetchedBalance = (snapshot['balance'] ?? 0.0).toDouble();
+        print("Balance fetched from Firestore: $fetchedBalance");
         setState(() {
           balance = (snapshot['balance'] ?? 0.0).toDouble();
         });
@@ -64,10 +67,15 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
       if (user == null) throw Exception("User not logged in");
 
       String uid = user.uid;
+      print("Updating balance in Firestore: $balance");
+
       await _firestore.collection('users').doc(uid).update({'balance': balance});
-    } catch (e) {
+
+      print("Balance updated successfully in Firestore.");
+    } catch (error) { // ✅ Change 'e' to 'error'
+      print("Error updating balance in Firestore: $error"); // ✅ Now 'error' is recognized
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error updating balance: ${e.toString()}")),
+        SnackBar(content: Text("Error updating balance: ${error.toString()}")),
       );
     }
   }
@@ -77,11 +85,13 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
       final User? user = _auth.currentUser;
       if (user == null) throw Exception("User not logged in");
 
+      final DocumentReference userRef = _firestore.collection('users').doc(user.uid); // ✅ Create userRef
+      print("Fetching transactions for user: ${userRef.path}");
       final snapshot = await _firestore
           .collection('transactions')
-          .where('user_id', isEqualTo: _firestore.collection('users').doc(user.uid))
+          .where('user_id', isEqualTo: userRef)
           .get();
-
+      print("Found ${snapshot.docs.length} transactions.");
       List<Map<String, dynamic>> fetchedTransactions = [];
 
       for (var doc in snapshot.docs) {
@@ -138,37 +148,51 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
       final User? user = _auth.currentUser;
       if (user == null) throw Exception("User not logged in");
 
-      final userRef = _firestore.collection('users').doc(user.uid);
+      final DocumentReference userRef = _firestore.collection('users').doc(user.uid);
 
-      // Ensure amount is stored as a double
       double amount = (newTransaction['amount'] as num).toDouble();
+      bool isIncome = newTransaction['isIncome'] as bool;
 
-      // Create a new transaction with proper types
       final transactionData = {
         ...newTransaction,
-        'amount': amount, // Ensure it's a double
-        'user_id': userRef, // Firestore DocumentReference
+        'amount': amount,
+        'user_id': userRef,
         'timestamp': FieldValue.serverTimestamp(),
       };
 
-      // Add the transaction to Firestore
       final docRef = await _firestore.collection('transactions').add(transactionData);
-
-      // Retrieve the new transaction with its generated ID
       final addedTransaction = {...transactionData, 'id': docRef.id};
 
-      // Use the transaction controller to update the balance
-      final result = addTransactionController(transactions, balance, addedTransaction);
+      print("Transaction successfully written with ID: ${docRef.id}");
 
-      // Update UI state
+      // Wait for Firestore to confirm
+    await docRef.get().then((docSnapshot) {
+      if (docSnapshot.exists) {
+        print("Transaction confirmed in Firestore: ${docSnapshot.data()}");
+      } else {
+        print("Transaction not found in Firestore!");
+      }
+    });
+      print("Transaction added: $addedTransaction");
+
+      final result = addTransactionController(transactions, balance, addedTransaction);
+      
+      print("Before update - Transactions: ${transactions.length}, Balance: $balance");
+
       setState(() {
         transactions = result.updatedTransactions;
         balance = result.updatedBalance;
       });
 
-      // Update balance in Firestore
-      await _updateBalanceInFirestore();
+      // ✅ Ensure the state update has completed before printing
+      Future.delayed(Duration(milliseconds: 100), () {
+        print("After update - Transactions: ${transactions.length}, Balance: $balance");
+      });
+
+      await _updateBalanceInFirestore(); 
+
     } catch (e) {
+      print("Error adding transaction: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error adding transaction: ${e.toString()}")),
       );
@@ -255,7 +279,14 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen> with Automa
           ),
           IconButton(
             icon: Icon(Icons.cloud),
-            onPressed: _fetchForecastData, // Trigger forecast data fetch
+
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => ForecastingScreen()),
+              );
+            },
+
           ),
         ],
       ),
