@@ -1,8 +1,7 @@
 # Spendiwise
 
 Expense Tracking and Forecasting Mobile App
-
-version: 1.15
+version: 1.16
 
 ## To-Do List
 1. [ ] AI integration ?? 
@@ -20,7 +19,6 @@ version: 1.15
 
 ## Extras
 - Selecting date information on the Transaction screen (current day is selected by default)
-- Recursive transaction flag (for situations such as salary and monthly subscription) - default: closed
 - Logs feature can be added to group wallet.
 - Swipe left to show calendar.
 

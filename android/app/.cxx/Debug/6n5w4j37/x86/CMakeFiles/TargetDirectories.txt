@@ -1,0 +1,2 @@
+D:/Projects/spendiwise/android/app/.cxx/Debug/6n5w4j37/x86/CMakeFiles/edit_cache.dir
+D:/Projects/spendiwise/android/app/.cxx/Debug/6n5w4j37/x86/CMakeFiles/rebuild_cache.dir
