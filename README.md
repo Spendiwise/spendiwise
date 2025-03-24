@@ -1,6 +1,7 @@
 # Spendiwise
 
 Expense Tracking and Forecasting Mobile App
+
 version: 1.15
 
 ## To-Do List
