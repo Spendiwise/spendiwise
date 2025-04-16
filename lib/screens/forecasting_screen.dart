@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 class ForecastingScreen extends StatefulWidget {
   const ForecastingScreen({Key? key}) : super(key: key);
@@ -15,9 +17,18 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
   String? _selectedCategory;
   String? _selectedDuration;
   Map<String, dynamic>? forecastData;
+  double? spendingLimit;
+
+  final List<Map<String, dynamic>> forecastHistory = [];
 
   final List<String> categories = ['Groceries', 'Entertainment', 'Food', 'Utilities', 'Dining'];
   final List<String> durations = ['week', 'month'];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadForecastsFromFirestore();
+  }
 
   Future<void> _fetchForecastData(String category, String duration) async {
     try {
@@ -39,8 +50,23 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
       );
 
       if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
         setState(() {
-          forecastData = jsonDecode(response.body);
+          forecastData = result;
+          forecastHistory.add({
+            "category": category,
+            "duration": duration,
+            "data": result,
+            "timestamp": DateTime.now().toString(),
+          });
+        });
+
+        await FirebaseFirestore.instance.collection('forecasts').add({
+          "user_id": user.uid,
+          "category": category,
+          "duration": duration,
+          "data": result,
+          "timestamp": FieldValue.serverTimestamp(),
         });
       } else {
         throw Exception('Failed to fetch forecast data: ${response.statusCode}');
@@ -52,17 +78,51 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
     }
   }
 
+  Future<void> _loadForecastsFromFirestore() async {
+    final User? user = _auth.currentUser;
+    if (user == null) {
+      print("No user logged in.");
+      return;
+    }
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('forecasts')
+          .where('user_id', isEqualTo: user.uid)
+          .orderBy('timestamp', descending: true)
+          .get();
+
+      print("Fetched ${snapshot.docs.length} documents");
+
+      setState(() {
+        forecastHistory.clear();
+        for (var doc in snapshot.docs) {
+          print("Loaded forecast: ${doc.data()}");
+          forecastHistory.add({
+            "category": doc['category'],
+            "duration": doc['duration'],
+            "data": doc['data'],
+            "timestamp": (doc['timestamp'] as Timestamp).toDate().toString(),
+          });
+        }
+      });
+    } catch (e) {
+      print("Error loading forecasts: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Forecasting')),
-      body: Padding(
+      appBar: AppBar(title: const Text('Forecast Dashboard')),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
+            // Category Dropdown
             DropdownButton<String>(
               value: _selectedCategory,
-              hint: Text('Select Category'),
+              hint: const Text('Select Category'),
               onChanged: (String? newValue) {
                 setState(() {
                   _selectedCategory = newValue;
@@ -75,10 +135,13 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
                 );
               }).toList(),
             ),
-            SizedBox(height: 16),
+
+            const SizedBox(height: 16),
+
+            // Duration Dropdown
             DropdownButton<String>(
               value: _selectedDuration,
-              hint: Text('Select Duration'),
+              hint: const Text('Select Duration'),
               onChanged: (String? newValue) {
                 setState(() {
                   _selectedDuration = newValue;
@@ -91,37 +154,109 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
                 );
               }).toList(),
             ),
-            SizedBox(height: 16),
+
+            const SizedBox(height: 16),
+
+            // Spending Limit Input
+            TextField(
+              decoration: const InputDecoration(
+                labelText: 'Set Spending Limit',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+              onChanged: (value) {
+                setState(() {
+                  spendingLimit = double.tryParse(value);
+                });
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            // Fetch Button
             ElevatedButton(
               onPressed: () {
                 if (_selectedCategory != null && _selectedDuration != null) {
                   _fetchForecastData(_selectedCategory!, _selectedDuration!);
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Please select both category and duration')),
+                    const SnackBar(content: Text('Please select both category and duration')),
                   );
                 }
               },
-              child: Text('Fetch Forecast'),
+              child: const Text('Fetch Forecast'),
             ),
-            SizedBox(height: 16),
+
+            const SizedBox(height: 20),
+
+            // Forecast Display
             if (forecastData != null)
-              Expanded(
-                child: ListView.builder(
-                  itemCount: forecastData!.length,
-                  itemBuilder: (context, index) {
-                    var entry = forecastData!.entries.elementAt(index);
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Forecast Results:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
+                  ...forecastData!.entries.map((entry) {
+                    final value = entry.value;
+                    final isNumeric = value is num;
+                    final bool overLimit = isNumeric && spendingLimit != null && value > spendingLimit!;
+
                     return Card(
                       elevation: 4,
-                      margin: EdgeInsets.symmetric(vertical: 8),
+                      margin: const EdgeInsets.symmetric(vertical: 8),
                       child: ListTile(
-                        leading: Icon(Icons.bar_chart, color: Colors.blue),
+                        leading: Icon(Icons.bar_chart, color: overLimit ? Colors.red : Colors.green),
                         title: Text(entry.key),
-                        subtitle: Text('Value: ${entry.value}'),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Value: $value'),
+                            if (isNumeric && spendingLimit != null)
+                              Text(
+                                'Difference: ${(value - spendingLimit!).toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  color: (value - spendingLimit!) > 0 ? Colors.red : Colors.green,
+                                ),
+                              ),
+                          ],
+                        ),
+                        trailing: spendingLimit != null
+                            ? isNumeric
+                                ? Text(
+                                    overLimit ? 'Over Limit' : 'Within Limit',
+                                    style: TextStyle(color: overLimit ? Colors.red : Colors.green),
+                                  )
+                                : const Text('N/A')
+                            : null,
                       ),
                     );
-                  },
-                ),
+                  }).toList(),
+                ],
+              ),
+
+            const SizedBox(height: 24),
+
+            // Forecast History
+            if (forecastHistory.isNotEmpty)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Forecast History', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
+                  ...forecastHistory.reversed.map((entry) {
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      child: ListTile(
+                        title: Text('${entry["category"]} - ${entry["duration"]}'),
+                        subtitle: Text('Forecast: ${entry["data"].toString()}'),
+                        trailing: Text(
+                          entry["timestamp"].toString().split('.')[0],
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ],
               ),
           ],
         ),
