@@ -1,77 +1,76 @@
-// text_extractor.dart
+// lib/text_extractor.dart
 
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'review_transactions_screen.dart';
 import 'text_parser.dart';
+import 'category_inference.dart';
 
 class TextExtractor {
-  /// For prototype purposes, ignore OCR
-  /// and just push a hard-coded list of 8 transactions.
+  /// Prototype mode: ignore OCR, push a hard-coded list of 8 transactions,
+  /// but infer category via our new CategoryInference (keyword + dynamic).
   static Future<void> extractTextFromImage({
     required BuildContext context,
     required File imageFile,
   }) async {
-    final manualTransactions = <Transaction>[
-      Transaction(
-        date: '16/02/2025',
-        description: 'Carrefoursa Merter',
-        amount: 112.25,
-        isIncome: false,
-        category: 'Market',
-      ),
-      Transaction(
-        date: '18/02/2025',
-        description: 'Kibhas Havalanlari Serv Girne',
-        amount: 350.00,
-        isIncome: false,
-        category: 'Transport',
-      ),
-      Transaction(
-        date: '19/02/2025',
-        description: 'Macro Market ODTÜ Güzelyurt',
-        amount: 188.96,
-        isIncome: false,
-        category: 'Market',
-      ),
-      Transaction(
-        date: '23/02/2025',
-        description: 'Kas ITH.IHR.LTD. Güzelyurt',
-        amount: 235.00,
-        isIncome: false,
-        category: 'Market',
-      ),
-      Transaction(
-        date: '24/02/2025',
-        description: 'Imam Guclu Simit Sarayi Güzelyurt',
-        amount: 70.00,
-        isIncome: false,
-        category: 'Market',
-      ),
-      Transaction(
-        date: '24/02/2025',
-        description: 'Imam Guclu Simit Sarayi Güzelyurt',
-        amount: 10.00,
-        isIncome: false,
-        category: 'Market',
-      ),
-      Transaction(
-        date: '24/02/2025',
-        description: 'Engin Yucelen Gift Shop Kibris',
-        amount: 10.00,
-        isIncome: false,
-        category: 'Rastaurant',
-      ),
-      Transaction(
-        date: '24/02/2025',
-        description: 'Macromar ODTÜ Güzelyurt',
-        amount: 266.72,
-        isIncome: false,
-        category: 'Market',
-      ),
+
+    // 1) Raw manual data without category
+    final raw = <Map<String, dynamic>>[
+      {
+        'date': '16/02/2025',
+        'description': 'spendiwise',
+        'amount': 112.25,
+      },
+      {
+        'date': '18/02/2025',
+        'description': 'Kibhas Havalanlari Serv Girne',
+        'amount': 350.00,
+      },
+      {
+        'date': '19/02/2025',
+        'description': 'Macro Market ODTÜ Güzelyurt',
+        'amount': 188.96,
+      },
+      {
+        'date': '23/02/2025',
+        'description': 'Kas ITH.IHR.LTD. Güzelyurt',
+        'amount': 235.00,
+      },
+      {
+        'date': '24/02/2025',
+        'description': 'Imam Guclu Simit Sarayi Güzelyurt',
+        'amount': 70.00,
+      },
+      {
+        'date': '24/02/2025',
+        'description': 'Imam Guclu Simit Sarayi Güzelyurt',
+        'amount': 10.00,
+      },
+      {
+        'date': '24/02/2025',
+        'description': 'Engin Yucelen Gift Shop Kibris',
+        'amount': 10.00,
+      },
+      {
+        'date': '24/02/2025',
+        'description': 'Macromar ODTÜ Güzelyurt',
+        'amount': 266.72,
+      },
     ];
 
-    // Navigate directly to the review screen with our manual data
+    // 2) Build Transaction list, inferring category automatically
+    final manualTransactions = raw.map((entry) {
+      final desc = entry['description'] as String;
+      return Transaction(
+        date: entry['date'] as String,
+        description: desc,
+        amount: entry['amount'] as double,
+        isIncome: false,
+        category: CategoryInference.inferCategory(desc),
+      );
+    }).toList();
+
+    // 3) Navigate to review screen
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -82,6 +81,7 @@ class TextExtractor {
     );
   }
 }
+
 
 
 

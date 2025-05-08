@@ -1,7 +1,7 @@
 # Spendiwise
 
 Expense Tracking and Forecasting Mobile App
-version: 1.19
+version: 1.20
 
 ## To-Do List
 1. [ ] AI integration ?? 

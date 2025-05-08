@@ -1,92 +1,124 @@
-
 // category_inference.dart
 
-import 'dart:async';
-import 'package:flutter/services.dart' show rootBundle;
-//import 'package:tflite_flutter/tflite_flutter.dart';
+import 'dynamic_category_service.dart';
 
-/// A helper that infers a transaction category from its description
-/// First tries a simple keyword map, then falls back to a local TFLite model.
 class CategoryInference {
-  /// A simple keyword→category map for the most common merchants.
+  /// Static keyword→category rules
   static const Map<String, String> _keywordMap = {
-    'carrefoursa': 'market',
-    'market': 'market',
-    'macromar': 'market',
-    'kas ith': 'market',
-    'simit sarayi': 'restaurant',
-    'gift shop': 'market',
-    'enginyucelen': 'restaurant',
+    // Groceries
+    'market': 'groceries',
+    'supermarket': 'groceries',
+    'macro market': 'groceries',
+    'migros': 'groceries',
+    'carrefoursa': 'groceries',
+    'bim': 'groceries',
+    'a101': 'groceries',
+    'şok': 'groceries',
+    'metro market': 'groceries',
+    'macromar': 'groceries',
+    'kas ith': 'groceries',
+
+    // Dining / Restaurants
+    'restaurant': 'dining',
+    'döner': 'dining',
+    'kebap': 'dining',
+    'simit sarayi': 'dining',
+    'pide': 'dining',
+    'burger': 'dining',
+    'kfc': 'dining',
+    'dominos': 'dining',
+    'subway': 'dining',
+
+    // Fuel / Auto
+    'shell': 'fuel',
+    'bp': 'fuel',
+    'opet': 'fuel',
+    'petrol': 'fuel',
+    'gas': 'fuel',
+
+    // Transportation
+    'uber': 'transportation',
     'havalanlari': 'transportation',
+    'otobus': 'transportation',
 
+    // Shopping
+    'shop': 'shopping',
+    'hepsiburada': 'shopping',
+    'trendyol': 'shopping',
+    'amazon': 'shopping',
+    'n11': 'shopping',
+
+    // Entertainment
+    'cinema': 'entertainment',
+    'sinema': 'entertainment',
+    'biletix': 'entertainment',
+    'netflix': 'entertainment',
+    'spotify': 'entertainment',
+    'youtube': 'entertainment',
+
+    // Health / sport
+    'pharmacy': 'health',
+    'eczane': 'health',
+    'hastane': 'health',
+    'hospital': 'health',
+    'gym': 'health',
+    'fitness': 'health',
+
+    // Travel / Accommodation
+    'hotel': 'travel',
+    'booking.com': 'travel',
+    'airbnb': 'travel',
+
+    // … other static rules can add here
   };
-}
-/*
-  static Interpreter? _interpreter;
 
-  /// Call once on app startup to load the TFLite model for fallback classification.
-  static Future<void> loadModel({String assetPath = 'assets/model.tflite'}) async {
-    _interpreter = await Interpreter.fromAsset(assetPath);
+  /// In-memory cache of dynamic mappings
+  static Map<String, String> _dynamicMap = {};
+
+  /// Must be called once at startup
+  static Future<void> init() async {
+    _dynamicMap = await DynamicCategoryService.fetchMappings();
   }
 
-  /// Infer the category for a given [description].
-  /// Returns a keyword match if found, otherwise uses the local ML model.
-  static Future<String> inferCategory(String description) async {
-    final descLower = description.toLowerCase();
+  /// Infer category: static first, then dynamic, else default.
+  static String inferCategory(String description) {
+    final key = description.toLowerCase().trim();
 
-    // 1) Keyword mapping
+    // 1) Static rules
     for (final entry in _keywordMap.entries) {
-      if (descLower.contains(entry.key)) {
+      if (key.contains(entry.key)) {
         return entry.value;
       }
     }
 
-    // 2) Fallback to local ML model
-    return _predictWithModel(description);
-  }
-
-  /// Internal: run the tflite interpreter to predict a category label index,
-  /// then map it back to a string label. You'll need to adjust this to your model.
-  static String _predictWithModel(String description) {
-    if (_interpreter == null) {
-      // Model not loaded – return default
-      return 'automatic transaction';
+    // 2) Dynamic user‐defined rules
+    for (final entry in _dynamicMap.entries) {
+      if (key.contains(entry.key)) {
+        return entry.value;
+      }
     }
 
-    // TODO: Preprocess the description into model input (e.g. token IDs, embeddings).
-    // This is highly model-specific; replace with your own preprocessing.
-    final input = _textToInputVector(description);
-
-    // Allocate output buffer – assume model outputs a fixed-size float array.
-    final output = List.filled(_labelMap.length, 0.0).reshape([1, _labelMap.length]);
-
-    _interpreter!.run(input, output);
-
-    // Find the index with highest probability
-    final probs = output[0] as List<double>;
-    final maxIndex = probs.indexWhere((p) => p == probs.reduce(max));
-
-    // Map that index back to a category label
-    return _labelMap[maxIndex];
+    // 3) Fallback
+    return 'automatic transaction';
   }
 
-  /// Convert raw text into model input. Replace with your real preprocessing.
-  static List<List<double>> _textToInputVector(String description) {
-    // Example stub: return a zero-vector input
-    // Your model might expect token IDs or embeddings here.
-    return [List.filled(_labelMap.length, 0.0)];
-  }
+  /// Save a user‐defined mapping only if no static or dynamic rule applies.
+  static Future<void> addUserMapping(
+      String description, String category) async {
+    final key = description.toLowerCase().trim();
 
-  /// A list of labels in the same order as your model's output nodes.
-  /// You must replace these with the actual labels your model was trained on.
-  static const List<String> _labelMap = [
-    'groceries',
-    'dining',
-    'transportation',
-    'gifts',
-    'education',
-    'travel',
-    // add more categories matching your model's output
-  ];
+    // If a static rule already covers this, skip
+    for (final entry in _keywordMap.entries) {
+      if (key.contains(entry.key)) return;
+    }
+
+    // If a dynamic rule already covers this, skip
+    for (final entry in _dynamicMap.entries) {
+      if (key.contains(entry.key)) return;
+    }
+
+    // Otherwise add new mapping
+    await DynamicCategoryService.addMapping(key, category);
+    _dynamicMap[key] = category;
+  }
 }
- */
