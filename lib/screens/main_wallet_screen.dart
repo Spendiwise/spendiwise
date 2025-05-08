@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -69,17 +70,31 @@ class _MainWalletScreenState extends State<MainWalletScreen> {
           _addUserToGroupWallet(createdGroupName);
         });
 
-        // After adding user to group, set the PageController to the group wallet screen.
-        _pageController.jumpToPage(1); // This ensures the user is taken to the group wallet screen directly after joining.
+        _pageController.jumpToPage(1);
       },
     );
 
-    return PageView(
-      controller: _pageController,
-      children: [
-        PersonalWalletScreen(),
-        secondPage,
-      ],
+    return Scaffold(
+      body: PageView(
+        controller: _pageController,
+        children: [
+          PersonalWalletScreen(),
+          secondPage,
+        ],
+      ),
+      floatingActionButton: kIsWeb
+          ? FloatingActionButton(
+        onPressed: () {
+          _pageController.animateToPage(
+            1,
+            duration: Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        },
+        child: Icon(Icons.arrow_forward),
+        tooltip: 'Go to Group Wallet',
+      )
+          : null,
     );
   }
 
