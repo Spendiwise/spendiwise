@@ -1,3 +1,4 @@
+// lib/controllers/transaction_controller.dart
 import 'package:flutter/material.dart';
 import '../screens/add_transaction_screen.dart';
 
@@ -11,14 +12,19 @@ class TransactionUpdateResult {
   });
 }
 
-// This function handles deleting a transaction
+// Deleting a transaction
 TransactionUpdateResult deleteTransactionController(
-    List<Map<String, dynamic>> transactions, double balance, int index) {
-  final transaction = transactions[index];
-  if (transaction['isIncome']) {
-    balance -= transaction['amount'];
+    List<Map<String, dynamic>> transactions,
+    double balance,
+    int index) {
+  final tx = transactions[index];
+  // Ensure amount is double
+  double amt = (tx['amount'] as num).toDouble();
+
+  if (tx['isIncome'] as bool) {
+    balance -= amt;
   } else {
-    balance += transaction['amount'];
+    balance += amt;
   }
 
   transactions.removeAt(index);
@@ -29,27 +35,32 @@ TransactionUpdateResult deleteTransactionController(
   );
 }
 
-// This function handles editing a transaction
+// Editing a transaction
 Future<TransactionUpdateResult?> editTransactionController(
     BuildContext context,
     List<Map<String, dynamic>> transactions,
     double balance,
-    int index,
-    ) async {
-  final updatedTransaction = await Navigator.push(
+    int index) async {
+  final updated = await Navigator.push<Map<String, dynamic>>(
     context,
     MaterialPageRoute(
-      builder: (context) => AddTransactionScreen(transaction: transactions[index]),
+      builder: (_) =>
+          AddTransactionScreen(transaction: transactions[index]),
     ),
   );
 
-  if (updatedTransaction != null) {
-    transactions[index] = updatedTransaction;
+  if (updated != null) {
+    // Cast amount to double
+    updated['amount'] = (updated['amount'] as num).toDouble();
+    transactions[index] = updated;
 
-    // Recalculate the balance
+    // Recalculate balance
     double newBalance = transactions.fold(
       0.0,
-          (sum, t) => sum + (t['isIncome'] ? t['amount'] : -t['amount']),
+          (sum, t) => sum +
+          ((t['isIncome'] as bool)
+              ? (t['amount'] as num).toDouble()
+              : -(t['amount'] as num).toDouble()),
     );
 
     return TransactionUpdateResult(
@@ -61,17 +72,20 @@ Future<TransactionUpdateResult?> editTransactionController(
   return null;
 }
 
-// This function handles adding a transaction
+// Adding a transaction
 TransactionUpdateResult addTransactionController(
     List<Map<String, dynamic>> transactions,
     double balance,
-    Map<String, dynamic> newTransaction,
-    ) {
+    Map<String, dynamic> newTransaction) {
+  // Cast amount
+  double amt = (newTransaction['amount'] as num).toDouble();
+  newTransaction['amount'] = amt;
   transactions.add(newTransaction);
-  if (newTransaction['isIncome']) {
-    balance += newTransaction['amount'];
+
+  if (newTransaction['isIncome'] as bool) {
+    balance += amt;
   } else {
-    balance -= newTransaction['amount'];
+    balance -= amt;
   }
 
   return TransactionUpdateResult(

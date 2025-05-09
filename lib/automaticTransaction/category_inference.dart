@@ -14,7 +14,6 @@ class CategoryInference {
     'bim': 'groceries',
     'a101': 'groceries',
     'şok': 'groceries',
-    'metro market': 'groceries',
     'macromar': 'groceries',
     'kas ith': 'groceries',
 

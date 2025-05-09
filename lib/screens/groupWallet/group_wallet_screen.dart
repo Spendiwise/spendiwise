@@ -1,23 +1,25 @@
+// lib/screens/group_wallet_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:tryout/widgets/forecasting_button.dart';
-import '../../controllers/transaction_controller.dart';
-import '../../controllers/group_controller.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+// Controllers
 import '../../controllers/goal_controller.dart';
+
+// Widgets
 import '../../widgets/balance_section.dart';
 import '../../widgets/goals_button.dart';
 import '../../widgets/search_transaction_button.dart';
-import '../../widgets/transaction_list.dart';
-import '../../widgets/add_transaction_fab.dart';
-import 'members_screen.dart';
-import '../../screens/events_subscription_screen.dart';
-import '../../widgets/events_button.dart';
-import 'create_group_wallet_screen.dart';
-import 'join_group_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../../screens/add_transaction_screen.dart';
 import '../../widgets/group_transaction_list.dart';
 import '../../widgets/automatic_transaction_button.dart';
+
+// Screens
+import 'members_screen.dart';
+import 'create_group_wallet_screen.dart';
+import 'join_group_screen.dart';
+import '../../screens/add_transaction_screen.dart';
+import '../../screens/notifications_screen.dart';
+import '../../screens/forecasting_screen.dart';
 
 class GroupWalletScreen extends StatefulWidget {
   final String groupName;
@@ -28,76 +30,70 @@ class GroupWalletScreen extends StatefulWidget {
   _GroupWalletScreenState createState() => _GroupWalletScreenState();
 }
 
-class _GroupWalletScreenState extends State<GroupWalletScreen> {
-  double balance = 0.0;
+class _GroupWalletScreenState extends State<GroupWalletScreen>
+    with AutomaticKeepAliveClientMixin {
+  String currentGroupName = '';
   String? groupId;
-  List<Map<String, dynamic>> transactions = [];
-  List<Map<String, dynamic>> goals = [];
   List<String> userGroups = [];
-
-  late String currentGroupName;
-  final FirebaseFirestore firestore = FirebaseFirestore.instance;
-  final String? userEmail = FirebaseAuth.instance.currentUser?.email ?? "unknown@example.com";
+  final _firestore = FirebaseFirestore.instance;
+  final _auth = FirebaseAuth.instance;
+  final String userEmail =
+      FirebaseAuth.instance.currentUser?.email ?? 'unknown@example.com';
 
   @override
   void initState() {
     super.initState();
     currentGroupName = widget.groupName;
-    _fetchGroupData();
-    _fetchUserGroups(); //We pull the groups the user is a member of.
+    _fetchGroupId();
+    _fetchUserGroups();
   }
 
-  Future<void> _fetchGroupData() async {
-    var groupQuery = await firestore
+  Future<void> _fetchUserGroups() async {
+    final email = _auth.currentUser?.email;
+    if (email == null) return;
+
+    final qs = await _firestore
+        .collection('wallets')
+        .where('members', arrayContains: email)
+        .get();
+
+    setState(() {
+      userGroups = qs.docs.map((d) => d['name'] as String).toList();
+    });
+  }
+
+  Future<void> _fetchGroupId() async {
+    final qs = await _firestore
         .collection('wallets')
         .where('name', isEqualTo: currentGroupName)
         .limit(1)
         .get();
 
-    if (groupQuery.docs.isNotEmpty) {
-      var groupDoc = groupQuery.docs.first;
+    if (qs.docs.isNotEmpty) {
       setState(() {
-        groupId = groupDoc.id;
-        balance = (groupDoc['balance'] ?? 0).toDouble();
+        groupId = qs.docs.first.id;
       });
     }
   }
 
-  Future<void> _fetchUserGroups() async {
-    // Query to fetch groups where the user's email exists in the "members" array
-    QuerySnapshot querySnapshot = await firestore
-        .collection('wallets')
-        .where('members', arrayContains: userEmail)
-        .get();
-    List<String> groups = [];
-    for (var doc in querySnapshot.docs) {
-      groups.add(doc['name']);
-    }
-    setState(() {
-      userGroups = groups;
-    });
-  }
-
-  Future<void> _updateGroupBalance(double newBalance) async {
-    if (groupId == null) return;
-    await firestore.collection('wallets').doc(groupId).update({'balance': newBalance});
-  }
-
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+    final user = _auth.currentUser;
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.group),
+          icon: Icon(Icons.group),
           onPressed: () {
             if (groupId != null) {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => MembersScreen(
+                  builder: (_) => MembersScreen(
                     groupId: groupId!,
                     groupName: currentGroupName,
-                    email: userEmail ?? "unknown@example.com",
+                    email: userEmail,
                   ),
                 ),
               );
@@ -110,135 +106,150 @@ class _GroupWalletScreenState extends State<GroupWalletScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(currentGroupName),
-              const SizedBox(width: 8),
-              const Icon(Icons.arrow_drop_down),
+              SizedBox(width: 4),
+              Icon(Icons.arrow_drop_down),
             ],
           ),
           onSelected: (value) {
-            if (value == 'create') {
+            if (value == 'join') {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => CreateGroupWalletScreen(),
-                ),
-              ).then((createdGroupName) {
-                if (createdGroupName != null) {
-                  setState(() {
-                    currentGroupName = createdGroupName;
-                  });
-                  _fetchUserGroups(); // Refresh groups after new group creation
+                MaterialPageRoute(builder: (_) => JoinGroupScreen()),
+              ).then((_) => _fetchUserGroups());
+            } else if (value == 'create') {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => CreateGroupWalletScreen()),
+              ).then((newName) {
+                if (newName != null) {
+                  setState(() => currentGroupName = newName);
+                  _fetchUserGroups();
+                  _fetchGroupId();
                 }
               });
-            } else if (value == 'join') {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => JoinGroupScreen(),
-                ),
-              ).then((_) {
-                _fetchUserGroups(); // Refresh groups after joining the group
-              });
             } else {
-              // User selects existing group
-              setState(() {
-                currentGroupName = value;
-              });
-              _fetchGroupData(); // Retrieve data of selected group
+              setState(() => currentGroupName = value);
+              _fetchGroupId();
             }
           },
-          itemBuilder: (context) {
-            List<PopupMenuEntry<String>> items = [];
-            // Add groups the user is a member of
+          itemBuilder: (_) {
+            final items = <PopupMenuEntry<String>>[];
             if (userGroups.isNotEmpty) {
-              items.addAll(
-                userGroups.map((group) => PopupMenuItem<String>(
-                  value: group,
-                  child: Text(group),
-                )),
-              );
-              items.add(const PopupMenuDivider());
+              items.addAll(userGroups.map((g) => PopupMenuItem(
+                value: g,
+                child: Text(g),
+              )));
+              items.add(PopupMenuDivider());
             }
-            // Join a group wallet option
-            items.add(
-              const PopupMenuItem<String>(
-                value: 'join',
-                child: Text('Join a group wallet'),
-              ),
-            );
-            // Create a group wallet option
-            items.add(
-              const PopupMenuItem<String>(
-                value: 'create',
-                child: Text('Create a group wallet'),
-              ),
-            );
+            items.add(PopupMenuItem(value: 'join', child: Text('Join a group')));
+            items.add(PopupMenuItem(value: 'create', child: Text('Create group')));
             return items;
           },
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.notifications),
+            onPressed: () {
+              if (user != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => NotificationsScreen(userEmail: user.email!),
+                  ),
+                );
+              }
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.cloud),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => ForecastingScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
-          BalanceSection(balance: balance),
-          const SizedBox(height: 16),
+          if (groupId != null)
+            StreamBuilder<DocumentSnapshot>(
+              stream:
+              _firestore.collection('wallets').doc(groupId!).snapshots(),
+              builder: (ctx, snap) {
+                if (!snap.hasData) return Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator(),
+                );
+                final data = snap.data!.data() as Map<String, dynamic>?;
+                final bal = (data?['balance'] as num?)?.toDouble() ?? 0.0;
+                return BalanceSection(balance: bal);
+              },
+            ),
+
+          SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Expanded(
                 child: GoalsButton(
-                  balance: balance,
-                  email: userEmail ?? "unknown@example.com",
+                  balance: 0, // unused here, balance inside GoalsButton won't use it
+                  email: userEmail,
                   groupId: groupId,
                   goalFlag: 1,
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Expanded(
                 child: SearchTransactionButton(
-                  transactions: transactions,
-                  onTransactionsUpdated: (updatedTransactions, updatedBalance) {
-                    setState(() {
-                      transactions = updatedTransactions;
-                      balance = updatedBalance;
-                      _updateGroupBalance(balance);
-                    });
-                  },
+                  transactions: [],
+                  onTransactionsUpdated: (_, __) {},
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          // Automatic Transaction Button
+
+          SizedBox(height: 16),
           AutomaticTransactionButton(),
-          const SizedBox(height: 8),
-          const SizedBox(height: 16),
-          if (transactions.isNotEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text(
-                'Transaction History',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          SizedBox(height: 8),
+
+          if (groupId != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Transaction History',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
+
           Expanded(
             child: groupId != null
                 ? GroupTransactionList(groupId: groupId!)
-                : Center(child: Text("Select a group wallet")),
+                : Center(child: Text("Select or create a group")),
           ),
         ],
       ),
+
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AddTransactionScreen(groupId: groupId),
-            ),
-          ).then((_) {
-            _fetchGroupData(); // Refresh group balance after returning
-          });
+          if (groupId != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AddTransactionScreen(groupId: groupId),
+              ),
+            );
+          }
         },
         child: Icon(Icons.add),
       ),
     );
   }
+
+  @override
+  bool get wantKeepAlive => true;
 }

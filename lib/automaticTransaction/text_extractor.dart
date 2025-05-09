@@ -7,14 +7,12 @@ import 'text_parser.dart';
 import 'category_inference.dart';
 
 class TextExtractor {
-  /// Prototype mode: ignore OCR, push a hard-coded list of 8 transactions,
-  /// but infer category via our new CategoryInference (keyword + dynamic).
   static Future<void> extractTextFromImage({
     required BuildContext context,
     required File imageFile,
   }) async {
 
-    // 1) Raw manual data without category
+    // Raw manual data without category
     final raw = <Map<String, dynamic>>[
       {
         'date': '16/02/2025',
@@ -25,11 +23,6 @@ class TextExtractor {
         'date': '18/02/2025',
         'description': 'Kibhas Havalanlari Serv Girne',
         'amount': 350.00,
-      },
-      {
-        'date': '19/02/2025',
-        'description': 'Macro Market ODTÜ Güzelyurt',
-        'amount': 188.96,
       },
       {
         'date': '23/02/2025',
@@ -43,22 +36,12 @@ class TextExtractor {
       },
       {
         'date': '24/02/2025',
-        'description': 'Imam Guclu Simit Sarayi Güzelyurt',
-        'amount': 10.00,
-      },
-      {
-        'date': '24/02/2025',
-        'description': 'Engin Yucelen Gift Shop Kibris',
-        'amount': 10.00,
-      },
-      {
-        'date': '24/02/2025',
         'description': 'Macromar ODTÜ Güzelyurt',
         'amount': 266.72,
       },
     ];
 
-    // 2) Build Transaction list, inferring category automatically
+    // Build Transaction list, inferring category automatically
     final manualTransactions = raw.map((entry) {
       final desc = entry['description'] as String;
       return Transaction(
@@ -70,7 +53,7 @@ class TextExtractor {
       );
     }).toList();
 
-    // 3) Navigate to review screen
+    // Navigate to review screen
     Navigator.push(
       context,
       MaterialPageRoute(

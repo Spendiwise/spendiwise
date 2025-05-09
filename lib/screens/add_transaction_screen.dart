@@ -1,12 +1,14 @@
+// lib/screens/add_transaction_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   final Map<String, dynamic>? transaction; // Accepts a transaction for editing
-  final String? groupId; // Added group ID to track if it's a group transaction
+  final String? groupId; // Track if it's a group transaction
 
-  AddTransactionScreen({this.transaction, this.groupId}); // Constructor
+  AddTransactionScreen({this.transaction, this.groupId});
 
   @override
   _AddTransactionScreenState createState() => _AddTransactionScreenState();
@@ -15,8 +17,12 @@ class AddTransactionScreen extends StatefulWidget {
 class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final TextEditingController descriptionController = TextEditingController();
   final TextEditingController amountController = TextEditingController();
-  String category = 'Food'; // Default category
-  bool isIncome = false; // Default: expense
+  final TextEditingController dateController = TextEditingController();
+
+  String category = 'Food';
+  bool isIncome = false;
+  late DateTime _selectedDate;
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -24,18 +30,32 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   void initState() {
     super.initState();
 
-    // If editing an existing transaction, populate fields
     if (widget.transaction != null) {
-      descriptionController.text = widget.transaction!['description'];
-      amountController.text = widget.transaction!['amount'].toString();
-      category = widget.transaction!['category'];
-      isIncome = widget.transaction!['isIncome'];
+      descriptionController.text = widget.transaction!['description'] as String;
+      double amt = (widget.transaction!['amount'] as num).toDouble();
+      amountController.text = amt.toString();
+      category = widget.transaction!['category'] as String;
+      isIncome = widget.transaction!['isIncome'] as bool;
+
+      final rawDate = widget.transaction!['date'];
+      if (rawDate is Timestamp) {
+        _selectedDate = rawDate.toDate();
+      } else if (rawDate is DateTime) {
+        _selectedDate = rawDate;
+      } else {
+        _selectedDate = DateTime.now();
+      }
+    } else {
+      _selectedDate = DateTime.now();
     }
+
+    dateController.text =
+    '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
   }
 
   Future<void> _updateUserBalance(double newBalance) async {
     try {
-      final User? user = _auth.currentUser;
+      final user = _auth.currentUser;
       if (user == null) throw Exception("User not logged in");
 
       await _firestore.collection('users').doc(user.uid).update({
@@ -52,49 +72,52 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     }
   }
 
-  Future<void> _addTransactionToFirestore(Map<String, dynamic> transactionData, {String? groupId}) async {
+  Future<void> _addTransactionToFirestore(
+      Map<String, dynamic> transactionData,
+      {String? groupId}) async {
     try {
-      final User? user = FirebaseAuth.instance.currentUser;
+      final user = _auth.currentUser;
       if (user == null) throw Exception("User not logged in");
 
-      CollectionReference transactionCollection;
+      CollectionReference txCol;
       DocumentReference balanceRef;
 
       if (groupId != null) {
-        // Add transaction to the group wallet
-        transactionCollection = FirebaseFirestore.instance
+        // Add to group wallet
+        txCol = _firestore
             .collection('wallets')
             .doc(groupId)
             .collection('transactions');
-
-        balanceRef = FirebaseFirestore.instance.collection('wallets').doc(groupId);
+        balanceRef = _firestore.collection('wallets').doc(groupId);
       } else {
-        // Add transaction to personal wallet
-        transactionCollection = FirebaseFirestore.instance
+        // Add to personal wallet
+        txCol = _firestore
             .collection('transactions')
             .doc(user.uid)
             .collection('transactions');
-
-        balanceRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+        balanceRef = _firestore.collection('users').doc(user.uid);
       }
 
-      final transaction = {
-        'amount': (transactionData['amount'] as num).toDouble(),
-        'category': transactionData['category'],
-        'date': DateTime.now(),
+      double amt = (transactionData['amount'] as num).toDouble();
+
+      final tx = {
         'description': transactionData['description'],
-        'modified_at': DateTime.now(),
+        'amount': amt,
+        'category': transactionData['category'],
         'isIncome': transactionData['isIncome'],
-        'user_id': user.uid, // Track who made the transaction
-        'group_id': groupId, // Store group ID if applicable
+        'date': _selectedDate,
+        'modified_at': DateTime.now(),
+        'user_id': user.uid,
+        'group_id': groupId,
       };
 
-      await transactionCollection.add(transaction);
+      await txCol.add(tx);
 
-      // Update balance for the respective wallet (group or personal)
-      final balanceDoc = await balanceRef.get();
-      double currentBalance = balanceDoc.exists ? (balanceDoc['balance'] ?? 0.0) : 0.0;
-      double newBalance = currentBalance + (transaction['isIncome'] ? transaction['amount'] : -transaction['amount']);
+      final docSnap = await balanceRef.get();
+      final data = docSnap.data() as Map<String, dynamic>?; // cast here
+      double currentBalance = (data?['balance'] as num?)?.toDouble() ?? 0.0;
+      double newBalance = currentBalance +
+          ((tx['isIncome'] as bool) ? (tx['amount'] as double) : -(tx['amount'] as double));
 
       await balanceRef.update({'balance': newBalance});
 
@@ -108,44 +131,39 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     }
   }
 
-
-  Future<void> _updateTransactionInFirestore(String transactionId, Map<String, dynamic> updatedData) async {
+  Future<void> _updateTransactionInFirestore(
+      String transactionId, Map<String, dynamic> updatedData) async {
     try {
-      final User? user = _auth.currentUser;
+      final user = _auth.currentUser;
       if (user == null) throw Exception("User not logged in");
 
       final docRef = _firestore.collection('transactions').doc(transactionId);
+      final oldSnap = await docRef.get();
+      if (!oldSnap.exists) throw Exception("Transaction not found");
 
-      // Fetch old transaction details
-      final oldTransaction = await docRef.get();
-      if (!oldTransaction.exists) throw Exception("Transaction not found");
+      double oldAmount = (oldSnap['amount'] as num).toDouble();
+      bool oldIsIncome = oldSnap['isIncome'] as bool;
 
-      double oldAmount = (oldTransaction['amount'] as num).toDouble();
-      bool oldIsIncome = oldTransaction['isIncome'];
+      updatedData['amount'] = (updatedData['amount'] as num).toDouble();
+      updatedData['date'] = _selectedDate;
 
-      // Update transaction in Firestore
       await docRef.update(updatedData);
 
-      // Fetch current balance
-      final userRef = _firestore.collection('users').doc(user.uid);
-      final userDoc = await userRef.get();
-      double currentBalance = userDoc.exists ? (userDoc['balance'] ?? 0.0) : 0.0;
+      final userSnap = await _firestore.collection('users').doc(user.uid).get();
+      final userData = userSnap.data() as Map<String, dynamic>?; // cast here
+      double currentBalance = (userData?['balance'] as num?)?.toDouble() ?? 0.0;
 
-      // Correct balance update based on income/expense changes
-      double updatedAmount = (updatedData['amount'] as num).toDouble();
-      bool updatedIsIncome = updatedData['isIncome'];
+      double newAmount = updatedData['amount'] as double;
+      bool newIsIncome = updatedData['isIncome'] as bool;
 
       double newBalance = currentBalance;
-
-      // If the income/expense type changes, reverse old effect and apply new one
-      if (oldIsIncome != updatedIsIncome) {
-        newBalance -= oldIsIncome ? oldAmount : -oldAmount; // Remove old transaction impact
-        newBalance += updatedIsIncome ? updatedAmount : -updatedAmount; // Add new impact
+      if (oldIsIncome != newIsIncome) {
+        newBalance -= oldIsIncome ? oldAmount : -oldAmount;
+        newBalance += newIsIncome ? newAmount : -newAmount;
       } else {
-        // If the type is the same, just adjust for the amount difference
-        newBalance += updatedIsIncome
-            ? (updatedAmount - oldAmount)
-            : (oldAmount - updatedAmount);
+        newBalance += oldIsIncome
+            ? (newAmount - oldAmount)
+            : (oldAmount - newAmount);
       }
 
       await _updateUserBalance(newBalance);
@@ -164,7 +182,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.transaction != null ? 'Edit Transaction' : 'Add Transaction'),
+        title: Text(
+            widget.transaction != null ? 'Edit Transaction' : 'Add Transaction'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -176,34 +195,45 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ),
             TextField(
               controller: amountController,
-              keyboardType: TextInputType.number,
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+              ],
               decoration: InputDecoration(labelText: 'Amount'),
+            ),
+            TextField(
+              controller: dateController,
+              readOnly: true,
+              decoration: InputDecoration(labelText: 'Date'),
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: _selectedDate,
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime(2100),
+                );
+                if (picked != null) {
+                  setState(() {
+                    _selectedDate = picked;
+                    dateController.text =
+                    '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+                  });
+                }
+              },
             ),
             DropdownButton<String>(
               value: category,
-              onChanged: (newValue) {
-                setState(() {
-                  category = newValue!;
-                });
-              },
+              onChanged: (v) => setState(() => category = v!),
               items: <String>['Food', 'Entertainment', 'Salary', 'Bills']
-                  .map<DropdownMenuItem<String>>((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
+                  .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                  .toList(),
             ),
             Row(
               children: [
                 Text('Expense'),
                 Switch(
                   value: isIncome,
-                  onChanged: (value) {
-                    setState(() {
-                      isIncome = value;
-                    });
-                  },
+                  onChanged: (v) => setState(() => isIncome = v),
                 ),
                 Text('Income'),
               ],
@@ -211,34 +241,36 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             SizedBox(height: 20),
             ElevatedButton(
               onPressed: () async {
-                final description = descriptionController.text;
-                final amount = double.tryParse(amountController.text);
+                final desc = descriptionController.text;
+                final amt = double.tryParse(amountController.text);
 
-                if (description.isNotEmpty && amount != null) {
-                  final transactionData = {
-                    'description': description,
-                    'amount': amount,
+                if (desc.isNotEmpty && amt != null) {
+                  final data = {
+                    'description': desc,
+                    'amount': amt,
                     'category': category,
                     'isIncome': isIncome,
                     'modified_at': DateTime.now(),
                   };
 
                   if (widget.transaction != null) {
-                    // Editing an existing transaction
-                    await _updateTransactionInFirestore(widget.transaction!['id'], transactionData);
+                    await _updateTransactionInFirestore(
+                        widget.transaction!['id'] as String, data);
                   } else {
-                    // Check if the transaction is for a group wallet or personal wallet
-                    await _addTransactionToFirestore(transactionData, groupId: widget.groupId);
+                    await _addTransactionToFirestore(data,
+                        groupId: widget.groupId);
                   }
 
-                  Navigator.pop(context); // Go back after saving
+                  Navigator.pop(context);
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text("Please fill in all fields")),
                   );
                 }
               },
-              child: Text(widget.transaction != null ? 'Update Transaction' : 'Add Transaction'),
+              child: Text(widget.transaction != null
+                  ? 'Update Transaction'
+                  : 'Add Transaction'),
             ),
           ],
         ),
