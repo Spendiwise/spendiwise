@@ -1,10 +1,9 @@
 // lib/screens/review_transactions_screen.dart
-
 import 'package:flutter/material.dart';
 import 'firebase_service.dart';
 import 'text_parser.dart';
+import '../screens/main_wallet_screen.dart';
 import 'category_inference.dart';
-import 'package:tryout/screens/main_wallet_screen.dart';
 
 class ReviewTransactionsScreen extends StatefulWidget {
   final List<Transaction> transactions;
@@ -34,6 +33,7 @@ class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
 
   Future<void> _loadAndInit() async {
     await CategoryInference.init();
+
     _dateCtrls = widget.transactions
         .map((t) => TextEditingController(text: t.date))
         .toList();
@@ -49,7 +49,6 @@ class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
         text: CategoryInference.inferCategory(t.description)))
         .toList();
     _isIncomeList = widget.transactions.map((t) => t.isIncome).toList();
-
 
     setState(() {
       _initialized = true;
@@ -71,6 +70,7 @@ class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
 
   Future<void> _saveAll() async {
     final edited = <Transaction>[];
+
     for (var i = 0; i < widget.transactions.length; i++) {
       final date = _dateCtrls[i].text.trim();
       final desc = _descCtrls[i].text.trim();
@@ -91,24 +91,24 @@ class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
       ));
     }
 
-    // Save to Firebase
     try {
       await addAutomaticTransactions(edited);
+
       if (!mounted) return;
       await showDialog(
         context: context,
         builder: (_) => AlertDialog(
           title: const Text('Success'),
-          content: Text('${edited.length} transactions saved.'),
+          content:
+          Text('${edited.length} transactions saved.'),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // close dialog
-                // Then navigate to MainWalletScreen, clearing backstack
+                Navigator.of(context).pop();
+                // Back to MainWalletScreen; real-time stream ile güncellenir
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(
-                    builder: (_) => MainWalletScreen(),
-                  ),
+                      builder: (_) => MainWalletScreen()),
                       (route) => false,
                 );
               },
@@ -139,14 +139,15 @@ class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
   Widget build(BuildContext context) {
     if (!_initialized) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Review & Edit Transactions')),
+        appBar:
+        AppBar(title: const Text('Review & Edit Transactions')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    // Asıl form
     return Scaffold(
-      appBar: AppBar(title: const Text('Review & Edit Transactions')),
+      appBar:
+      AppBar(title: const Text('Review & Edit Transactions')),
       body: ListView.builder(
         padding: const EdgeInsets.all(12),
         itemCount: widget.transactions.length,
@@ -156,16 +157,18 @@ class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment:
+                CrossAxisAlignment.stretch,
                 children: [
                   TextField(
                     controller: _dateCtrls[idx],
-                    decoration: const InputDecoration(labelText: 'Date'),
+                    decoration:
+                    const InputDecoration(labelText: 'Date'),
                   ),
                   TextField(
                     controller: _descCtrls[idx],
-                    decoration:
-                    const InputDecoration(labelText: 'Description'),
+                    decoration: const InputDecoration(
+                        labelText: 'Description'),
                   ),
                   TextField(
                     controller: _amountCtrls[idx],
@@ -176,8 +179,8 @@ class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
                   ),
                   TextField(
                     controller: _categoryCtrls[idx],
-                    decoration:
-                    const InputDecoration(labelText: 'Category'),
+                    decoration: const InputDecoration(
+                        labelText: 'Category'),
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -188,9 +191,11 @@ class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
                         value: _isIncomeList[idx],
                         items: const [
                           DropdownMenuItem(
-                              value: false, child: Text('Expense')),
+                              value: false,
+                              child: Text('Expense')),
                           DropdownMenuItem(
-                              value: true, child: Text('Income')),
+                              value: true,
+                              child: Text('Income')),
                         ],
                         onChanged: (v) =>
                             setState(() => _isIncomeList[idx] = v!),
@@ -209,8 +214,8 @@ class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
           const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: ElevatedButton(
             onPressed: _saveAll,
-            style:
-            ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)),
+            style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.all(16)),
             child: const Text('Save All'),
           ),
         ),
