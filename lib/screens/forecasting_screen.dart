@@ -84,25 +84,61 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
     if (user == null) return;
 
     try {
-      final snapshot = await FirebaseFirestore.instance
+      final forecastSnapshot = await FirebaseFirestore.instance
           .collection('forecasts')
           .where('user_id', isEqualTo: user.uid)
           .orderBy('timestamp', descending: true)
           .get();
 
-      setState(() {
-        forecastHistory.clear();
-        for (var doc in snapshot.docs) {
-          forecastHistory.add({
-            "category": doc['category'],
-            "duration": doc['duration'],
-            "data": doc['data'],
-            "timestamp": (doc['timestamp'] as Timestamp).toDate().toString(),
-          });
+      final List<Map<String, dynamic>> loadedForecasts = [];
+
+      for (var doc in forecastSnapshot.docs) {
+        final String category = doc['category'];
+        final String duration = doc['duration'];
+        final Map<String, dynamic> data = Map<String, dynamic>.from(doc['data']);
+        final DateTime forecastTimestamp = (doc['timestamp'] as Timestamp).toDate();
+
+        // Determine start date based on duration
+        DateTime startDate;
+        if (duration == 'week') {
+          startDate = forecastTimestamp.subtract(const Duration(days: 7));
+        } else if (duration == 'month') {
+          startDate = DateTime(forecastTimestamp.year, forecastTimestamp.month - 1, forecastTimestamp.day);
+        } else {
+          startDate = forecastTimestamp.subtract(const Duration(days: 30)); // Fallback
         }
+
+        // Fetch matching real transactions
+        final transactionSnapshot = await FirebaseFirestore.instance
+            .collection('transactions')
+            .where('user_id', isEqualTo: user.uid) // Match reference string
+            .where('category', isEqualTo: category)
+            .where('isIncome', isEqualTo: false)
+            .where('date', isGreaterThanOrEqualTo: startDate)
+            .where('date', isLessThanOrEqualTo: forecastTimestamp)
+            .get();
+
+        double realSpending = 0;
+        for (var txn in transactionSnapshot.docs) {
+          realSpending += (txn['amount'] as num).toDouble();
+        }
+
+        loadedForecasts.add({
+          "category": category,
+          "duration": duration,
+          "data": data,
+          "timestamp": forecastTimestamp.toString(),
+          "real_amount": realSpending,
+        });
+      }
+
+      setState(() {
+        forecastHistory
+          ..clear()
+          ..addAll(loadedForecasts);
       });
     } catch (e) {
-      print("Error loading forecasts: $e");
+      print("Error loading forecasts or real data: $e");
     }
   }
 
@@ -111,18 +147,22 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
       return const Center(child: Text("No data to chart"));
     }
 
-    List<FlSpot> spots = [];
-    List<String> labels = [];
+    List<FlSpot> forecastSpots = [];
+    List<FlSpot> realSpots = [];
+    Map<int, String> monthLabels = {}; // X-index -> "Jan 2025"
 
     for (int i = 0; i < forecastHistory.length; i++) {
-      final data = forecastHistory[i]["data"];
-      final value = data.entries.firstWhere(
-        (e) => e.value is num,
-        orElse: () => MapEntry("amount", 0),
-      ).value;
+      final entry = forecastHistory[i];
+      final DateTime timestamp = DateTime.parse(entry["timestamp"]);
+      final dynamic rawForecast = entry["data"].values.first;
+      final double forecastValue = rawForecast is num
+          ? rawForecast.toDouble()
+          : double.tryParse(rawForecast.toString()) ?? 0.0;
+      final double realValue = (entry["real_amount"] ?? 0).toDouble();
 
-      spots.add(FlSpot(i.toDouble(), (value as num).toDouble()));
-      labels.add(forecastHistory[i]["timestamp"].split(' ').first);
+      forecastSpots.add(FlSpot(i.toDouble(), forecastValue));
+      realSpots.add(FlSpot(i.toDouble(), realValue));
+      monthLabels[i] = "${_monthAbbr(timestamp.month)} ${timestamp.year}";
     }
 
     return Column(
@@ -135,27 +175,45 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
               gridData: FlGridData(show: true),
               borderData: FlBorderData(show: true),
               titlesData: FlTitlesData(
-                leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true)),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(showTitles: true),
+                ),
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
+                    reservedSize: 36,
                     getTitlesWidget: (value, meta) {
                       int index = value.toInt();
-                      if (index < labels.length) {
-                        return Text(labels[index], style: const TextStyle(fontSize: 10));
+                      if (monthLabels.containsKey(index)) {
+                        return SideTitleWidget(
+                          axisSide: meta.axisSide,
+                          child: Text(
+                            monthLabels[index]!,
+                            style: const TextStyle(fontSize: 10),
+                          ),
+                        );
                       }
-                      return const Text('');
+                      return const SizedBox.shrink();
                     },
                   ),
                 ),
               ),
               lineBarsData: [
                 LineChartBarData(
-                  spots: spots,
+                  spots: forecastSpots,
                   isCurved: true,
                   dotData: FlDotData(show: true),
                   color: Colors.deepPurple,
                   belowBarData: BarAreaData(show: false),
+                  barWidth: 3,
+                ),
+                LineChartBarData(
+                  spots: realSpots,
+                  isCurved: true,
+                  dotData: FlDotData(show: true),
+                  color: Colors.orange,
+                  belowBarData: BarAreaData(show: false),
+                  barWidth: 3,
                 ),
               ],
               extraLinesData: ExtraLinesData(horizontalLines: [
@@ -176,6 +234,19 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
           ),
         ),
         const SizedBox(height: 12),
+        const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.show_chart, color: Colors.deepPurple),
+            SizedBox(width: 4),
+            Text('Forecast'),
+            SizedBox(width: 12),
+            Icon(Icons.show_chart, color: Colors.orange),
+            SizedBox(width: 4),
+            Text('Actual'),
+          ],
+        ),
+        const SizedBox(height: 12),
         Text("Adjust Spending Limit: ${_historySpendingLimit.toStringAsFixed(2)}"),
         Slider(
           min: 0,
@@ -190,6 +261,12 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
         ),
       ],
     );
+  }
+
+  // Helper function
+  String _monthAbbr(int month) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[month - 1];
   }
 
   Widget _buildForecastHistoryCard(Map<String, dynamic> entry) {
