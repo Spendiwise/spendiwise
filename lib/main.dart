@@ -2,9 +2,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'screens/landing_screen.dart';
 import 'automaticTransaction//category_inference.dart';
+import 'utils/app_globals.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,11 +29,24 @@ void main() async {
   } else {
     await Firebase.initializeApp();
   }
+/*
+  /// 2) USE FIREBASE EMULATOR (only for local testing)///
+  if (kDebugMode) {
+    // Connect Firebase Auth to emulator
+    await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
 
-  // 2) Load dynamic category mappings
+    // Connect Firestore to emulator
+    FirebaseFirestore.instance.settings = const Settings(
+      host: 'localhost:8080',
+      sslEnabled: false,
+      persistenceEnabled: false,
+    );
+  }
+*/
+  // 3) Load dynamic category mappings
   await CategoryInference.init();
 
-  // 3) Start app
+  // 4) Start app
   runApp(const SpendiwiseApp());
 }
 
@@ -39,6 +56,7 @@ class SpendiwiseApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'Spendiwise',
       theme: ThemeData(primarySwatch: Colors.blue),
       home: LandingScreen(),

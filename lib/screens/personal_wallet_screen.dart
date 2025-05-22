@@ -1,9 +1,11 @@
-// lib/screens/personal_wallet.dart
+// lib/screens/personal_wallet_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert'; // For JSON encoding/decoding
 import 'package:http/http.dart' as http; // For making HTTP requests
+import 'package:badges/badges.dart' as badges; // For notification badge
 
 // Widgets
 import '../widgets/balance_section.dart';
@@ -42,7 +44,7 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen>
     _fetchForecastData();
   }
 
-  // Real-time listener for balance changes
+  /// Listens in real time to the user's balance document
   void _listenToBalanceChanges() {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -50,8 +52,9 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen>
     _firestore.collection('users').doc(user.uid).snapshots().listen((snap) {
       if (snap.exists) {
         final data = snap.data()!;
-        // Ensure num → double
-        final fetchedBalance = (data['balance'] as num?)?.toDouble() ?? 0.0;
+        // Convert num to double safely
+        final fetchedBalance =
+            (data['balance'] as num?)?.toDouble() ?? 0.0;
         setState(() {
           balance = fetchedBalance;
         });
@@ -59,16 +62,7 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen>
     });
   }
 
-  Future<void> _updateBalanceInFirestore() async {
-    final user = _auth.currentUser;
-    if (user == null) return;
-
-    await _firestore
-        .collection('users')
-        .doc(user.uid)
-        .update({'balance': balance});
-  }
-
+  /// Fetches forecast data from external service
   Future<void> _fetchForecastData() async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -101,12 +95,12 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen>
     }
   }
 
+  /// Optional: callback for adding a transaction outside FAB
   Future<void> onAddTransaction(Map<String, dynamic> newTransaction) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
     try {
-      // Prepare data
       double amt = (newTransaction['amount'] as num).toDouble();
       final transactionData = {
         ...newTransaction,
@@ -114,16 +108,8 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen>
         'user_id': _firestore.collection('users').doc(user.uid),
         'timestamp': FieldValue.serverTimestamp(),
       };
-
-      // Write to Firestore
-      final docRef =
       await _firestore.collection('transactions').add(transactionData);
-
-      // Update balance by letting _listenToBalanceChanges pick it up
-      // (balance is automatically synced)
-      // But if you need to adjust server-side, you can:
-      // final newBalance = balance + (newTransaction['isIncome'] as bool ? amt : -amt);
-      // await _firestore.collection('users').doc(user.uid).update({'balance': newBalance});
+      // Balance will update via listener
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error adding transaction: $e")),
@@ -131,6 +117,7 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen>
     }
   }
 
+  /// Builds the forecast section UI
   Widget _buildForecastSection() {
     if (forecastData == null || forecastData!.isEmpty) {
       return Center(
@@ -180,33 +167,60 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen>
         centerTitle: true,
         title: Text('Personal Wallet'),
         actions: [
-          IconButton(
-            icon: Icon(Icons.notifications),
-            onPressed: () {
-              if (user != null) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => NotificationsScreen(userEmail: user.email!),
+          // Notification icon with unread badge
+          StreamBuilder<QuerySnapshot>(
+            stream: _firestore
+                .collection('notification')
+                .where('email', isEqualTo: userEmail)
+                .where('isRead', isEqualTo: false)
+                .snapshots(),
+            builder: (context, snapshot) {
+              int unreadCount =
+              snapshot.hasData ? snapshot.data!.docs.length : 0;
+              return IconButton(
+                icon: badges.Badge(
+                  position:
+                  badges.BadgePosition.topEnd(top: -6, end: -6),
+                  showBadge: unreadCount > 0,
+                  badgeContent: Text(
+                    '$unreadCount',
+                    style: TextStyle(
+                        color: Colors.white, fontSize: 10),
                   ),
-                );
-              }
+                  child: Icon(Icons.notifications),
+                ),
+                onPressed: () {
+                  if (user != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => NotificationsScreen(
+                            userEmail: user.email!),
+                      ),
+                    );
+                  }
+                },
+              );
             },
           ),
+
+          // Forecast icon
           IconButton(
             icon: Icon(Icons.cloud),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => ForecastingScreen()),
+                MaterialPageRoute(
+                    builder: (_) => ForecastingScreen()),
               );
             },
           ),
         ],
       ),
+
       body: Column(
         children: [
-          // Dynamic balance display
+          // Balance display
           BalanceSection(balance: balance),
 
           SizedBox(height: 16),
@@ -223,10 +237,8 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen>
               SizedBox(width: 8),
               Expanded(
                 child: SearchTransactionButton(
-                  transactions: [], // Now unused, kept for compatibility
-                  onTransactionsUpdated: (txs, bal) {
-                    // no-op: list is real-time
-                  },
+                  transactions: [],
+                  onTransactionsUpdated: (txs, bal) {},
                 ),
               ),
             ],
@@ -236,12 +248,14 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen>
           AutomaticTransactionButton(),
 
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 16.0, vertical: 8.0),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
                 'Transaction History',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -251,6 +265,8 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen>
           ),
         ],
       ),
+
+      // Floating action button for adding transactions
       floatingActionButton: AddTransactionFAB(
         onTransactionAdded: onAddTransaction,
       ),

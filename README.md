@@ -1,13 +1,12 @@
 # Spendiwise
 
 Expense Tracking and Forecasting Mobile App
-version: 1.22
+version: 1.23
 
 ## To-Do List
 1. [ ] AI integration ?? 
 2. [ ] Report function
-3. [ ] Send notification for some cases
-4. [ ] Limit set and tracking (send notification if limit is exceeded)
+3. [ ] Limit set and tracking (send notification if limit is exceeded)
 
 ## New Features
 - OCR: A feature that reads and records data from a bank's data, such as isbank
