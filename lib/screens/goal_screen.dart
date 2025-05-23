@@ -1,3 +1,5 @@
+// lib/screens/goal_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'add_goal_screen.dart';
@@ -23,16 +25,12 @@ class GoalScreen extends StatefulWidget {
 class _GoalScreenState extends State<GoalScreen> {
   @override
   Widget build(BuildContext context) {
-    final String queryField =
-    widget.goalFlag == 0 ? 'email' : 'groupId';
-    final dynamic queryValue =
-    widget.goalFlag == 0 ? widget.email : widget.groupId;
+    // Determine query field based on goalFlag
+    final String queryField = widget.goalFlag == 0 ? 'email' : 'groupId';
+    final dynamic queryValue = widget.goalFlag == 0 ? widget.email : widget.groupId;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Your Goals'),
-      ),
-      // Floating button to add new goal
+      appBar: AppBar(title: Text('Your Goals')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           await Navigator.push(
@@ -55,21 +53,17 @@ class _GoalScreenState extends State<GoalScreen> {
             .where(queryField, isEqualTo: queryValue)
             .snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
+          if (snapshot.connectionState == ConnectionState.waiting)
             return Center(child: CircularProgressIndicator());
-          }
 
           final docs = snapshot.data!.docs;
-          if (docs.isEmpty) {
-            return Center(child: Text('No goals found.'));
-          }
+          if (docs.isEmpty) return Center(child: Text('No goals found.'));
 
-          // Split into incomplete and completed
+          // Partition into incomplete and completed
           final incomplete = <QueryDocumentSnapshot>[];
           final completed = <QueryDocumentSnapshot>[];
+
           for (var doc in docs) {
             final data = doc.data() as Map<String, dynamic>;
             final target = (data['target'] as num).toDouble();
@@ -80,17 +74,20 @@ class _GoalScreenState extends State<GoalScreen> {
             }
           }
 
-          Widget buildSection(String title, List<QueryDocumentSnapshot> items,
-              {required bool isCompleted}) {
+          Widget buildSection(
+              String title,
+              List<QueryDocumentSnapshot> items, {
+                required bool isCompleted,
+              }) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Text(title,
-                      style:
-                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Text(
+                    title,
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ),
                 if (items.isEmpty)
                   Padding(
@@ -103,43 +100,32 @@ class _GoalScreenState extends State<GoalScreen> {
                     final goalId = doc.id;
                     final title = data['title'] as String;
                     final target = (data['target'] as num).toDouble();
-                    final progress = widget.balance >= target
-                        ? target
-                        : widget.balance;
 
-                    return Card(
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 6),
-                      color:
-                      isCompleted ? Colors.green.shade300 : Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                      child: ListTile(
-                        title: Text(
-                          title,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color:
-                            isCompleted ? Colors.white : Colors.black,
+                    if (!isCompleted) {
+                      // Calculate current progress and percent
+                      final progress = widget.balance;
+                      final percentComplete =
+                      ((progress / target) * 100).clamp(0, 100).toInt();
+
+                      return Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        child: ListTile(
+                          title: Text(
+                            title,
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
-                        ),
-                        subtitle: Text(
-                          isCompleted
-                              ? 'Completed: \$${target.toStringAsFixed(2)}'
-                              : 'Progress: \$${progress.toStringAsFixed(2)} / \$${target.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: isCompleted
-                                ? Colors.white70
-                                : Colors.black87,
+                          // Show both amount and percentage
+                          subtitle: Text(
+                            'Progress: \$${progress.toStringAsFixed(2)} / \$${target.toStringAsFixed(2)} '
+                                '(${percentComplete}%)',
+                            style: TextStyle(fontSize: 14),
                           ),
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (!isCompleted) ...[
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
                               IconButton(
-                                icon: Icon(Icons.edit,
-                                    color: Colors.grey[800]),
+                                icon: Icon(Icons.edit, color: Colors.grey[800]),
                                 onPressed: () async {
                                   await Navigator.push(
                                     context,
@@ -153,24 +139,47 @@ class _GoalScreenState extends State<GoalScreen> {
                                   );
                                 },
                               ),
+                              IconButton(
+                                icon: Icon(Icons.delete, color: Colors.red),
+                                onPressed: () async {
+                                  await FirebaseFirestore.instance
+                                      .collection('goals')
+                                      .doc(goalId)
+                                      .delete();
+                                },
+                              ),
                             ],
-                            IconButton(
-                              icon: Icon(Icons.delete,
-                                  color: isCompleted
-                                      ? Colors.white
-                                      : Colors.red),
-                              onPressed: () async {
-                                // delete goal
-                                await FirebaseFirestore.instance
-                                    .collection('goals')
-                                    .doc(goalId)
-                                    .delete();
-                              },
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    );
+                      );
+                    } else {
+                      // Completed goals styling unchanged
+                      return Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        color: Colors.green.shade300,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        child: ListTile(
+                          title: Text(
+                            title,
+                            style:
+                            TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                          subtitle: Text(
+                            'Completed: \$${target.toStringAsFixed(2)}',
+                            style: TextStyle(color: Colors.white70, fontStyle: FontStyle.italic),
+                          ),
+                          trailing: IconButton(
+                            icon: Icon(Icons.delete, color: Colors.white),
+                            onPressed: () async {
+                              await FirebaseFirestore.instance
+                                  .collection('goals')
+                                  .doc(goalId)
+                                  .delete();
+                            },
+                          ),
+                        ),
+                      );
+                    }
                   }).toList(),
               ],
             );
@@ -178,11 +187,9 @@ class _GoalScreenState extends State<GoalScreen> {
 
           return ListView(
             children: [
-              buildSection('Incomplete Goals', incomplete,
-                  isCompleted: false),
-              buildSection('Completed Goals', completed,
-                  isCompleted: true),
-              SizedBox(height: 80), // space for FAB
+              buildSection('Incomplete Goals', incomplete, isCompleted: false),
+              buildSection('Completed Goals', completed, isCompleted: true),
+              SizedBox(height: 80), // padding for FAB
             ],
           );
         },
