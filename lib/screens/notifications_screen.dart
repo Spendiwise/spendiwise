@@ -3,14 +3,27 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:badges/badges.dart' as badges;
+
+/// Milestone color and icon mappings
+const Map<int, Color> milestoneColors = {
+  25: Colors.amber,
+  50: Colors.deepOrange,
+  75: Colors.lightBlue,
+  100: Colors.green,
+};
+
+const Map<int, IconData> milestoneIcons = {
+  25: Icons.flag,
+  50: Icons.outlined_flag,
+  75: Icons.outlined_flag_rounded,
+  100: Icons.celebration,
+};
 
 class NotificationsScreen extends StatelessWidget {
   final String userEmail;
 
   NotificationsScreen({required this.userEmail});
 
-  /// Batch delete all notifications for the user
   Future<void> _clearAll(BuildContext context) async {
     final batch = FirebaseFirestore.instance.batch();
     final snapshot = await FirebaseFirestore.instance
@@ -26,7 +39,6 @@ class NotificationsScreen extends StatelessWidget {
     );
   }
 
-  /// Formats a Timestamp to "yyyy-MM-dd HH:mm"
   String _formatDate(Timestamp ts) {
     final dt = ts.toDate().toLocal();
     return DateFormat('yyyy-MM-dd HH:mm').format(dt);
@@ -38,7 +50,6 @@ class NotificationsScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text('Notifications'),
         actions: [
-          // Clear all button
           IconButton(
             icon: Icon(Icons.delete_forever),
             tooltip: 'Clear All',
@@ -48,14 +59,17 @@ class NotificationsScreen extends StatelessWidget {
                 builder: (ctx) => AlertDialog(
                   title: Text('Clear all notifications?'),
                   content: Text(
-                      'This will remove all notifications permanently.'),
+                    'This will remove all notifications permanently.',
+                  ),
                   actions: [
                     TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: Text('Cancel')),
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: Text('Cancel'),
+                    ),
                     TextButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        child: Text('Clear')),
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: Text('Clear'),
+                    ),
                   ],
                 ),
               );
@@ -89,18 +103,38 @@ class NotificationsScreen extends StatelessWidget {
               final formattedDate =
               _formatDate(notif['timestamp'] as Timestamp);
 
-              return Card(
+              final milestone = notif['milestone'] as int? ?? 0;
+              final color = milestoneColors[milestone] ?? Colors.grey;
+              final iconData =
+                  milestoneIcons[milestone] ?? Icons.notifications;
+              final isRead = notif['isRead'] as bool? ?? false;
+
+              // Compute a 20% opacity equivalent alpha value using color.a
+              final bgColor = isRead
+                  ? Colors.grey.shade100
+                  : color.withAlpha((color.a * 0.2).round());
+
+              return Container(
                 margin: EdgeInsets.symmetric(vertical: 6),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  border: Border(
+                    left: BorderSide(
+                      color: isRead ? Colors.grey : color,
+                      width: 4,
+                    ),
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 child: ListTile(
-                  leading: notif['isRead'] == false
-                      ? Icon(Icons.fiber_new, color: Colors.red)
-                      : Icon(Icons.mark_email_read,
-                      color: Colors.grey),
+                  leading: Icon(iconData, color: color),
                   title: Text(
                     notif['title'],
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontWeight:
+                      isRead ? FontWeight.normal : FontWeight.bold,
+                      color: Colors.black87,
+                    ),
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,7 +147,9 @@ class NotificationsScreen extends StatelessWidget {
                       Text(
                         formattedDate,
                         style: TextStyle(
-                            fontSize: 12, color: Colors.grey[600]),
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
                       ),
                     ],
                   ),

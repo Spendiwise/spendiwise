@@ -1,0 +1,2 @@
+D:/Projects/spendiwise/android/app/.cxx/RelWithDebInfo/3b18593k/armeabi-v7a/CMakeFiles/edit_cache.dir
+D:/Projects/spendiwise/android/app/.cxx/RelWithDebInfo/3b18593k/armeabi-v7a/CMakeFiles/rebuild_cache.dir
