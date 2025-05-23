@@ -1,15 +1,12 @@
 # Spendiwise
 
 Expense Tracking and Forecasting Mobile App
-version: 2.02
+version: 2.03
 
 ## To-Do List
-1. [ ] AI integration ?? 
+1. [ ] AI integration
 2. [ ] Report function
 3. [ ] Limit set and tracking (send notification if limit is exceeded)
-
-## New Features
-- OCR: A feature that reads and records data from a bank's data, such as isbank
 
 ## Group wallet details
 - Approve / decline implementation
