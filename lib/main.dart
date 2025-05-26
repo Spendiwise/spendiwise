@@ -43,8 +43,10 @@ void main() async {
     );
   }
 */
+
+
   // 3) Load dynamic category mappings
-  await CategoryInference.init();
+  //await CategoryInference.init();
 
   // 4) Start app
   runApp(const SpendiwiseApp());
