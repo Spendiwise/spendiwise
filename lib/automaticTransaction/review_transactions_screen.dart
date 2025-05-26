@@ -18,12 +18,34 @@ class ReviewTransactionsScreen extends StatefulWidget {
 }
 
 class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
+  // Controllers
   late List<TextEditingController> _dateCtrls;
   late List<TextEditingController> _descCtrls;
   late List<TextEditingController> _amountCtrls;
-  late List<TextEditingController> _categoryCtrls;
   late List<bool> _isIncomeList;
+  // Selected categories per item
+  late List<String> _categoryList;
   bool _initialized = false;
+
+  // Master list of all categories for dropdown
+  static const List<String> _allCategories = [
+    'groceries',
+    'dining',
+    'gifts',
+    'transportation',
+    'utilities',
+    'shopping',
+    'entertainment',
+    'health',
+    'travel',
+    'fuel',
+    'education',
+    'auto',
+    'bills',
+    'salary',
+    'refund',
+    'others',
+  ];
 
   @override
   void initState() {
@@ -32,6 +54,7 @@ class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
   }
 
   Future<void> _loadAndInit() async {
+    // reload dynamic mappings
     await CategoryInference.init();
 
     _dateCtrls = widget.transactions
@@ -44,15 +67,13 @@ class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
         .map((t) =>
         TextEditingController(text: t.amount.toStringAsFixed(2)))
         .toList();
-    _categoryCtrls = widget.transactions
-        .map((t) => TextEditingController(
-        text: CategoryInference.inferCategory(t.description)))
-        .toList();
     _isIncomeList = widget.transactions.map((t) => t.isIncome).toList();
+    // infer initial categories
+    _categoryList = widget.transactions
+        .map((t) => CategoryInference.inferCategory(t.description))
+        .toList();
 
-    setState(() {
-      _initialized = true;
-    });
+    setState(() => _initialized = true);
   }
 
   @override
@@ -61,7 +82,6 @@ class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
       ..._dateCtrls,
       ..._descCtrls,
       ..._amountCtrls,
-      ..._categoryCtrls,
     ]) {
       c.dispose();
     }
@@ -70,14 +90,13 @@ class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
 
   Future<void> _saveAll() async {
     final edited = <Transaction>[];
-
     for (var i = 0; i < widget.transactions.length; i++) {
       final date = _dateCtrls[i].text.trim();
       final desc = _descCtrls[i].text.trim();
       final amount = double.tryParse(
           _amountCtrls[i].text.replaceAll(',', '.')) ??
           0.0;
-      final category = _categoryCtrls[i].text.trim();
+      final category = _categoryList[i];
       final isIncome = _isIncomeList[i];
 
       await CategoryInference.addUserMapping(desc, category);
@@ -93,19 +112,16 @@ class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
 
     try {
       await addAutomaticTransactions(edited);
-
       if (!mounted) return;
       await showDialog(
         context: context,
         builder: (_) => AlertDialog(
           title: const Text('Success'),
-          content:
-          Text('${edited.length} transactions saved.'),
+          content: Text('${edited.length} transactions saved.'),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                // Back to MainWalletScreen; real-time stream ile güncellenir
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(
                       builder: (_) => MainWalletScreen()),
@@ -126,12 +142,53 @@ class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
           content: Text(e.toString()),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK')),
           ],
         ),
       );
+    }
+  }
+
+  Future<void> _selectCategory(int index) async {
+    String filter = '';
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      builder: (_) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final filtered = _allCategories
+                .where((c) => c.contains(filter.toLowerCase()))
+                .toList();
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: TextField(
+                    decoration:
+                    const InputDecoration(labelText: 'Search category'),
+                    onChanged: (v) => setState(() => filter = v),
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: filtered.length,
+                    itemBuilder: (ctx, i) {
+                      return ListTile(
+                        title: Text(filtered[i]),
+                        onTap: () => Navigator.pop(ctx, filtered[i]),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    if (selected != null) {
+      setState(() => _categoryList[index] = selected);
     }
   }
 
@@ -139,15 +196,13 @@ class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
   Widget build(BuildContext context) {
     if (!_initialized) {
       return Scaffold(
-        appBar:
-        AppBar(title: const Text('Review & Edit Transactions')),
+        appBar: AppBar(title: const Text('Review & Edit Transactions')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
-      appBar:
-      AppBar(title: const Text('Review & Edit Transactions')),
+      appBar: AppBar(title: const Text('Review & Edit Transactions')),
       body: ListView.builder(
         padding: const EdgeInsets.all(12),
         itemCount: widget.transactions.length,
@@ -157,18 +212,16 @@ class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
-                crossAxisAlignment:
-                CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   TextField(
                     controller: _dateCtrls[idx],
-                    decoration:
-                    const InputDecoration(labelText: 'Date'),
+                    decoration: const InputDecoration(labelText: 'Date'),
                   ),
                   TextField(
                     controller: _descCtrls[idx],
-                    decoration: const InputDecoration(
-                        labelText: 'Description'),
+                    decoration:
+                    const InputDecoration(labelText: 'Description'),
                   ),
                   TextField(
                     controller: _amountCtrls[idx],
@@ -177,10 +230,22 @@ class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
                     keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                   ),
-                  TextField(
-                    controller: _categoryCtrls[idx],
-                    decoration: const InputDecoration(
-                        labelText: 'Category'),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: () => _selectCategory(idx),
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Category',
+                        border: OutlineInputBorder(),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(_categoryList[idx]),
+                          const Icon(Icons.arrow_drop_down),
+                        ],
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -191,11 +256,9 @@ class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
                         value: _isIncomeList[idx],
                         items: const [
                           DropdownMenuItem(
-                              value: false,
-                              child: Text('Expense')),
+                              value: false, child: Text('Expense')),
                           DropdownMenuItem(
-                              value: true,
-                              child: Text('Income')),
+                              value: true, child: Text('Income')),
                         ],
                         onChanged: (v) =>
                             setState(() => _isIncomeList[idx] = v!),
@@ -214,8 +277,8 @@ class _ReviewTransactionsScreenState extends State<ReviewTransactionsScreen> {
           const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: ElevatedButton(
             onPressed: _saveAll,
-            style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.all(16)),
+            style:
+            ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)),
             child: const Text('Save All'),
           ),
         ),

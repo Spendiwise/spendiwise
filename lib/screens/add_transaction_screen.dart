@@ -21,7 +21,26 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final TextEditingController amountController = TextEditingController();
   final TextEditingController dateController = TextEditingController();
 
-  String category = 'Food';
+  static const List<String> _categories = [
+    'groceries',
+    'dining',
+    'gifts',
+    'transportation',
+    'utilities',
+    'shopping',
+    'entertainment',
+    'health',
+    'travel',
+    'fuel',
+    'education',
+    'auto',
+    'bills',
+    'salary',
+    'refund',
+    'others',
+  ];
+
+  String category = _categories.first;
   bool isIncome = false;
   late DateTime _selectedDate;
 
@@ -37,7 +56,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       descriptionController.text = tx['description'] as String;
       double amt = (tx['amount'] as num).toDouble();
       amountController.text = amt.toString();
-      category = tx['category'] as String;
+
+      final cat = tx['category'] as String;
+      category = _categories.contains(cat) ? cat : _categories.first;
+
       isIncome = tx['isIncome'] as bool;
 
       final rawDate = tx['date'];
@@ -134,7 +156,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               controller: descriptionController,
               decoration: InputDecoration(labelText: 'Description'),
             ),
-
             TextField(
               controller: amountController,
               keyboardType: TextInputType.numberWithOptions(decimal: true),
@@ -143,7 +164,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ],
               decoration: InputDecoration(labelText: 'Amount'),
             ),
-
             TextField(
               controller: dateController,
               readOnly: true,
@@ -166,13 +186,17 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               },
             ),
 
+            const SizedBox(height: 16),
+
             DropdownButton<String>(
               value: category,
               onChanged: (v) => setState(() => category = v!),
-              items: <String>['Food', 'Entertainment', 'Salary', 'Bills']
+              items: _categories
                   .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                   .toList(),
             ),
+
+            const SizedBox(height: 16),
 
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -206,7 +230,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 }
               },
               child: Text(
-                widget.transaction != null ? 'Update Transaction' : 'Add Transaction',
+                widget.transaction != null
+                    ? 'Update Transaction'
+                    : 'Add Transaction',
               ),
             ),
           ],
