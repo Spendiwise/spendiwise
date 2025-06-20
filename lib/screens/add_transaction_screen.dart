@@ -22,7 +22,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final TextEditingController dateController = TextEditingController();
 
   static const List<String> _categories = [
-    'groceries',
+    'Groceries',
     'dining',
     'gifts',
     'transportation',
