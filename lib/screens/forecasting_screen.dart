@@ -37,7 +37,7 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
       final User? user = _auth.currentUser;
       if (user == null) throw Exception("User not logged in");
 
-      final String apiUrl = 'http://10.0.2.2:5000/forecast';
+      final String apiUrl = 'https://daa3-212-175-193-56.ngrok-free.app/forecast';
 
       final Map<String, dynamic> payload = {
         "user_id": user.uid,
