@@ -5,7 +5,7 @@ import 'dynamic_category_service.dart';
 class CategoryInference {
   /// Static keyword→category rules
   static const Map<String, String> _keywordMap = {
-    // Groceries
+    // Grocer
     'market': 'groceries',
     'supermarket': 'groceries',
     'macro market': 'groceries',

@@ -10,18 +10,56 @@ class LoginScreen extends StatelessWidget {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   Future<void> loginUser(BuildContext context) async {
-      await _auth.signInWithEmailAndPassword(
+    try {
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
+
+      User? user = userCredential.user;
+
+      if (user != null && !user.emailVerified) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text("Email not verified"),
+            content: const Text("You have not verified your email address yet. Please check your inbox."),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  await user.sendEmailVerification();
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Verification email resent.")),
+                  );
+                },
+                child: const Text("Resend verification email"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text("OK"),
+              ),
+            ],
+          ),
+        );
+      }
+
+      // Proceed to main screen regardless of verification status
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => MainWalletScreen()),
       );
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Login Successful!")),
       );
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Login Failed: ${e.message}")),
+      );
+    }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +81,6 @@ class LoginScreen extends StatelessWidget {
           Container(
             color: Colors.black.withOpacity(0.3),
           ),
-
           Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -56,7 +93,6 @@ class LoginScreen extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Email TextField
                     TextField(
                       controller: emailController,
                       style: const TextStyle(color: Colors.black),
@@ -69,7 +105,6 @@ class LoginScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Password TextField
                     TextField(
                       controller: passwordController,
                       obscureText: true,

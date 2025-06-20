@@ -26,6 +26,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: passwordController.text.trim(),
       );
 
+      // Send email verification
+      if (!userCredential.user!.emailVerified) {
+        await userCredential.user!.sendEmailVerification();
+
+        // Show popup if email not verified
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text("Verify your email"),
+            content: const Text("A verification email has been sent. Please check your inbox to verify your email address."),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("OK"),
+              ),
+            ],
+          ),
+        );
+      }
+
       // Save additional data in Firestore after successful registration
       String userID = userCredential.user!.uid;
       await _firestore.collection('users').doc(userID).set({
@@ -35,17 +55,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'balance': 0.0, // Default balance
       });
 
-      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registration Successful!')),
+        const SnackBar(content: Text('Registration successful.')),
       );
 
-      // Optionally, close the registration screen or navigate elsewhere
-      Navigator.pop(context);
+      // Navigate to main screen after registration
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => MainWalletScreen()),
+      );
     } catch (e) {
-      // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Registration Failed: ${e.toString()}')),
+        SnackBar(content: Text('Registration Failed: \${e.toString()}')),
       );
     }
   }
@@ -59,7 +80,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
       body: Stack(
         children: [
-          // Background image
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -68,11 +88,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
           ),
-          // Semi-transparent black overlay
           Container(
             color: Colors.black.withOpacity(0.3),
           ),
-          // Centered form
           Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -85,7 +103,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Name input field
                     TextField(
                       controller: nameController,
                       style: const TextStyle(color: Colors.black),
@@ -98,7 +115,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Email input field
                     TextField(
                       controller: emailController,
                       style: const TextStyle(color: Colors.black),
@@ -111,7 +127,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Password input field
                     TextField(
                       controller: passwordController,
                       obscureText: true,
@@ -125,7 +140,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    // Register button
                     ElevatedButton(
                       onPressed: registerUser,
                       style: ElevatedButton.styleFrom(
