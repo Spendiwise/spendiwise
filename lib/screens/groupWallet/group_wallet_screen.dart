@@ -194,7 +194,7 @@ class _GroupWalletScreenState extends State<GroupWalletScreen>
             children: [
               Expanded(
                 child: GoalsButton(
-                  balance: 0, // unused here, balance inside GoalsButton won't use it
+                  balance: 0,
                   email: userEmail,
                   groupId: groupId,
                   goalFlag: 1,
@@ -202,10 +202,7 @@ class _GroupWalletScreenState extends State<GroupWalletScreen>
               ),
               SizedBox(width: 8),
               Expanded(
-                child: SearchTransactionButton(
-                  transactions: [],
-                  onTransactionsUpdated: (_, __) {},
-                ),
+                child: SearchTransactionButton(),
               ),
             ],
           ),

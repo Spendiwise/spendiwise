@@ -2,7 +2,7 @@
 
 Expense Tracking and Forecasting Mobile App
 
-version: 2.07
+version: 2.09
 
 ## Group wallet details
 
