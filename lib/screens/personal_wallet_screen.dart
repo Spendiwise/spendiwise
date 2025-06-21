@@ -236,10 +236,7 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen>
               ),
               SizedBox(width: 8),
               Expanded(
-                child: SearchTransactionButton(
-                  transactions: [],
-                  onTransactionsUpdated: (txs, bal) {},
-                ),
+                child: SearchTransactionButton(),
               ),
             ],
           ),
