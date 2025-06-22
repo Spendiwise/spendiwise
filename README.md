@@ -2,22 +2,13 @@
 
 Expense Tracking and Forecasting Mobile App
 
-version: 2.09
+version: 2.1
 
 ## Group wallet details
 
-- autpmatic transaction
-
-- forecast actual spending
-
 - AI da kullanılan tarhiler databasedeki tarihlerle eşleşmiyor (database/AI)
 
-- search transaction
-
 ##Extra
-- forecast butonu
-
-- Logs feature can be added to group wallet.
 
 - There are UI differences between the Group Wallet and Personal Wallet screen.
 

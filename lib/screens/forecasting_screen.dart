@@ -37,7 +37,7 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
       final User? user = _auth.currentUser;
       if (user == null) throw Exception("User not logged in");
 
-      final String apiUrl = 'https://daa3-212-175-193-56.ngrok-free.app/forecast';
+      final String apiUrl = 'http://10.0.2.2:5000/forecast';
 
       final Map<String, dynamic> payload = {
         "user_id": user.uid,
@@ -101,7 +101,7 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
     try {
       final forecastSnapshot = await FirebaseFirestore.instance
           .collection('forecasts')
-          .where('user_id', isEqualTo: user.uid)
+          .where('user_id', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
           .orderBy('timestamp', descending: true)
           .limit(10)
           .get();
@@ -144,7 +144,7 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
           // Method 1: Query with string user_id (if stored as string)
           var transactionSnapshot = await FirebaseFirestore.instance
               .collection('transactions')
-              .where('user_id', isEqualTo: user.uid) // Direct string comparison
+              .where('user_id', isEqualTo: FirebaseFirestore.instance.collection('users').doc(user.uid)) // Direct string comparison
               .where('category', isEqualTo: category)
               .where('isIncome', isEqualTo: false)
               .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
@@ -170,11 +170,13 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
               print("DocumentReference query failed: $e");
             }
           }
-
+          print("📦 Transactions fetched: ${transactionSnapshot.docs.length}");
+          print("User ref being queried: ${FirebaseFirestore.instance.collection('users').doc(user.uid)}"); // should be "users/wR3LbXKhmJYPseZYToGkmhcYz373"
           // Calculate real spending
           for (var txn in transactionSnapshot.docs) {
             final data = txn.data();
             print("Transaction data: $data"); // Debug print
+            print("✅ txn amount: ${data['amount']} | isIncome: ${data['isIncome']} | date: ${data['date']}");
             
             // Handle different number types
             final dynamic amount = data['amount'];
@@ -196,7 +198,7 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
           try {
             final allTransactions = await FirebaseFirestore.instance
                 .collection('transactions')
-                .where('user_id', isEqualTo: user.uid)
+                .where('user_id', isEqualTo: FirebaseFirestore.instance.collection('users').doc(user.uid))
                 .get();
             
             print("Fallback: Found ${allTransactions.docs.length} total transactions");
@@ -291,7 +293,7 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
       // Check if any transactions exist for current user
       final userTransactions = await FirebaseFirestore.instance
           .collection('transactions')
-          .where('user_id', isEqualTo: user.uid)
+          .where('user_id', isEqualTo: FirebaseFirestore.instance.collection('users').doc(user.uid))
           .limit(3)
           .get();
       
@@ -351,6 +353,7 @@ class _ForecastingScreenState extends State<ForecastingScreen> {
           : double.tryParse(rawForecast.toString()) ?? 0.0;
       
       final double realValue = (entry["real_amount"] ?? 0).toDouble();
+      print("🔍 Real spending for ${entry["category"]} = $realValue");
 
       forecastSpots.add(FlSpot(i.toDouble(), forecastValue));
       realSpots.add(FlSpot(i.toDouble(), realValue));

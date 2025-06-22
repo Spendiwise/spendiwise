@@ -112,7 +112,7 @@ class NotificationsScreen extends StatelessWidget {
               // Compute a 20% opacity equivalent alpha value using color.a
               final bgColor = isRead
                   ? Colors.grey.shade100
-                  : color.withAlpha((color.a * 0.2).round());
+                  : color.withAlpha((color.alpha * 0.2).round());
 
               return Container(
                 margin: EdgeInsets.symmetric(vertical: 6),

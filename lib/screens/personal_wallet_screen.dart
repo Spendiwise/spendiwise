@@ -14,6 +14,8 @@ import '../widgets/search_transaction_button.dart';
 import '../widgets/transaction_list.dart';
 import '../widgets/add_transaction_fab.dart';
 import '../widgets/automatic_transaction_button.dart';
+import '../widgets/forecasting_button.dart';
+
 
 // Controllers
 import '../controllers/goal_controller.dart';
@@ -241,8 +243,20 @@ class _PersonalWalletScreenState extends State<PersonalWalletScreen>
             ],
           ),
 
-          SizedBox(height: 16),
-          AutomaticTransactionButton(),
+          SizedBox(height: 8),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                child: AutomaticTransactionButton(),
+              ),
+              SizedBox(height: 8),
+              Expanded(
+                child: ForecastingButton(),
+              ),
+            ],
+          ),
 
           Padding(
             padding: const EdgeInsets.symmetric(
